@@ -1,0 +1,12 @@
+{{define "base/search_form"}}
+
+<form class="layui-form admin-search-form" id="search_form">
+    <ul class="layui-form-item">
+        {{ .searchFormHtml }}
+        <li class="layui-inline">
+            <div class="layui-btn layui-btn-sm" admin-href="alert('ok1');" link-type="1">查询</div>
+        </li>
+    </ul>
+</form>
+
+{{end}}

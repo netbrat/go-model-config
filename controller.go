@@ -8,27 +8,32 @@ import (
 //控制器接口
 type IController interface {
 	Init(*Context)
-	AbortWithSuccess()
-	AbortWithError(httpStatus int, message string, errInfo string)
+	AbortWithSuccess(result interface{})
+	AbortWithError(httpStatus int, result interface{})
 	SaveLog()
 }
 
+
+//输出内容
+type Assign struct {
+	HttpStatus	int
+	Context		*Context
+	Result		interface{}
+}
+
+
 //控制器基类
 type Controller struct {
-	Context  *Context
-	Assign   map[string]interface{}
-	Template string
-	//Result *Result
+	Context  	*Context
+	Assign   	*Assign
+	Template 	string
 }
 
 //初始化基类
 func (ctrl *Controller) Init(c *Context) {
 	ctrl.Context = c
 	ctrl.Template = fmt.Sprintf("%s/%s_%s.html", ctrl.Context.Reqs.RealModule, ctrl.Context.Reqs.RealController, ctrl.Context.Reqs.Action)
-	ctrl.Assign = map[string]interface{}{
-		"page_size": option.PageSize,
-		"context":   ctrl.Context,
-	}
+	ctrl.Assign = &Assign{Context: c}
 	ctrl.SaveLog()
 }
 
@@ -37,17 +42,26 @@ func (ctrl *Controller) SaveLog() {
 
 }
 
-func (ctrl *Controller) AbortWithSuccess() {
+//成功输出
+func (ctrl *Controller) AbortWithSuccess(result interface{}) {
+	if result != nil {
+		ctrl.Assign.Result = result
+	}else{
+		ctrl.Assign.Result = map[string]interface{}{}
+	}
+	ctrl.Assign.HttpStatus = http.StatusOK
 	ctrl.Context.HTML(http.StatusOK, ctrl.Template, ctrl.Assign)
+	ctrl.Context.Abort()
 }
 
-func (ctrl *Controller) AbortWithError(httpStatus int, message string, errInfo string) {
-	if ctrl.Assign == nil {
-		ctrl.Assign = map[string]interface{}{}
+//错误输出
+func (ctrl *Controller) AbortWithError(httpStatus int, result interface{}) {
+	if result != nil {
+		ctrl.Assign.Result = result
+	}else{
+		ctrl.Assign.Result = map[string]interface{}{}
 	}
-	ctrl.Assign["message"] = message
-	ctrl.Assign["err_info"] = errInfo
-	ctrl.Assign["http_status"] = httpStatus
+	ctrl.Assign.HttpStatus = httpStatus
 	ctrl.Context.HTML(httpStatus, option.ErrorTemplate, ctrl.Assign)
 	ctrl.Context.Abort()
 }

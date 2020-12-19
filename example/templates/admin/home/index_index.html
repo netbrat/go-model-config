@@ -1,0 +1,41 @@
+{{define "home/index_index.html"}}
+{{template "base/header" .}}
+
+<div class="layout-header">
+    <div class="logo">
+        <span class="title">WIOMS<br/>掌世界运营管理系统</span>
+        <span class="title-short">WIOMS</span>
+    </div>
+    <ul class="layui-nav left">
+        <li class="layui-nav-item" lay-unselect>
+            <a href="javascript:;" admin-event="flexible" title="侧边伸缩">
+                <i class="layui-icon layui-icon-shrink-right" id="admin_app_flexible"></i>
+            </a>
+        </li>
+        <li class="layui-nav-item"><a admin-href="/home/index/biz" open-type="1" logo-min-width="60" logo-max-width="290" admin-default-open>业务系统</a></li>
+        <li class="layui-nav-item"><a admin-href="/home/index/biz?a=1" open-type="1">运维系统</a></li>
+        <li class="layui-nav-item"><a admin-href="/hom3" open-type="1" logo-min-width="0" logo-max-width="160">工单系统</a> </li>
+        <li class="layui-nav-item"><a admin-href="/hom4" open-type="1">文档系统</a></li>
+        <li class="layui-nav-item"><a admin-href="http://deploy.winside.cn:9999/" open-type="1">旧版系统</a></li>
+    </ul>
+    <ul class="layui-nav right">
+        <li class="layui-nav-item" lay-unselect>
+            <a href="javascript:;" admin-event="fullScreen" title="全屏">
+                <i class="layui-icon layui-icon-screen-full"></i>
+            </a>
+        </li>
+        <li class="layui-nav-item">
+            <a href="javascript:;"><cite>admin</cite></a>
+            <dl class="layui-nav-child">
+                <dd><a href="">密码修改</a></dd>
+                <hr>
+                <dd><a href="">退了</a></dd>
+            </dl>
+        </li>
+    </ul>
+</div>
+<!--下方主体-->
+<div class="layout-bottom" id="admin_app_body"></div>
+
+{{template "base/footer" .}}
+{{end}}

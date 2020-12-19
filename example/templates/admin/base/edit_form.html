@@ -1,0 +1,8 @@
+{{define "base/edit_form"}}
+<form method="post" class="layui-form layui-form-pane admin-edit-form" id="edit_form" lay-filter="edit-form">
+    {{ .formHtml }}
+</form>
+<script>
+    layui.form.render(null, 'edit-form');
+</script>
+{{end}}

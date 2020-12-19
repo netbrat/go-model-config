@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cast"
 )
 
-//路由请求参数
+//路由请求路径结构体
 type Reqs struct {
 	Module         string //模块
 	RealModule     string //实际使用的模块
@@ -32,13 +32,14 @@ type Context struct {
 	*gin.Context
 }
 
+//获取分页信息
 func (c *Context) GetPage() (page int, pageSize int) {
 	if c.Request.Method == "GET" {
-		page = cast.ToInt(c.Query("page"))
-		pageSize = cast.ToInt(c.Query("page_size"))
+		page = cast.ToInt(c.Query(option.VarPage))
+		pageSize = cast.ToInt(c.Query(option.VarPageSize))
 	} else {
-		page = cast.ToInt(c.Request.Form["page"])
-		page = cast.ToInt(c.Request.Form["page_size"])
+		page = cast.ToInt(c.Request.Form[option.VarPage])
+		page = cast.ToInt(c.Request.Form[option.VarPageSize])
 	}
 	if page < 1 {
 		page = 1
@@ -51,8 +52,10 @@ func (c *Context) GetPage() (page int, pageSize int) {
 
 //上下文初始化
 func (c *Context) Init() {
-	//分析请求路径
-	params := strings.Split(strings.ToLower(c.Request.URL.Path), "/")
+	//去除伪静态后缀
+	path := strings.Replace(strings.ToLower(c.Request.URL.Path), "." + option.UrlHtmlSuffix, "", -1)
+	//拆分请求路径
+	params := strings.Split(path, option.UrlPathSeparator)
 	params = append(params, "", "", "", "")
 	c.Reqs = &Reqs{
 		Module:         params[1],
