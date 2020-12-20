@@ -60,12 +60,11 @@ func inArray(obj interface{}, target interface{}) bool {
 	return false
 }
 
-func jsonFileToStruct(file string, obj interface{}) (err error) {
-	data, err := ioutil.ReadFile(file)
-	data = bytes.TrimPrefix(data, []byte("\xef\xbb\xbf"))
-	if err != nil {
-		return
+func jsonFileToStruct(file string, obj interface{}) error {
+	if data, err := ioutil.ReadFile(file); err != nil{
+		return err
+	}else{
+		data = bytes.TrimPrefix(data, []byte("\xef\xbb\xbf"))
+		return json.Unmarshal(data, obj)
 	}
-	err = json.Unmarshal(data, obj)
-	return
 }

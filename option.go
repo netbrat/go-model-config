@@ -22,7 +22,9 @@ type Option struct {
 	ModuleBaseControllerMapKey	string		//当前模块下基础控制器key		默认为 "base"
 	ErrorCallBackFunc			func(httpStatus int, error string) interface{}	//错误回调
 	VarPage						string		//前端页码参数名				默认值："page"
-	VarPageSize					string		//前端页记录数参数名			默认为："page_size"
+	VarPageSize					string		//前端页记录数参数名			默认值："page_size"
+	ConfigsFilePath				string		//自定义模型配置文件存放路径	默认值："./model_configs/"
+	DefaultConnName				string		//默认数据库连接名			默认值："default"
 }
 
 
@@ -31,7 +33,7 @@ var option = Option{
 	PageSize:                   50,
 	ErrorTemplate:              "error.html",
 	RouterMap:                  RouterMap{},
-	NotAuthRedirect:            "/admin/public/login.html",
+	NotAuthRedirect:            "/public/login.html",
 	UrlPathSeparator:           "/",
 	UrlHtmlSuffix:              "html",
 	BaseModuleMapKey:           "base",
@@ -40,8 +42,10 @@ var option = Option{
 	ErrorCallBackFunc: 			func(httpStatus int, error string) interface{}{ return gin.H{"code":httpStatus, "message":error}},
 	VarPage:					"page",
 	VarPageSize:				"page_size",
+	ConfigsFilePath:			"./model_configs/",
+	DefaultConnName:			"default",
 }
 
-func DefaultOption() *Option{
-	return &option;
+func Default() *Option{
+	return &option
 }

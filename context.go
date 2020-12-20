@@ -1,10 +1,9 @@
 package mc
 
 import (
-	"strings"
-
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+	"strings"
 )
 
 //路由请求路径结构体
@@ -32,23 +31,6 @@ type Context struct {
 	*gin.Context
 }
 
-//获取分页信息
-func (c *Context) GetPage() (page int, pageSize int) {
-	if c.Request.Method == "GET" {
-		page = cast.ToInt(c.Query(option.VarPage))
-		pageSize = cast.ToInt(c.Query(option.VarPageSize))
-	} else {
-		page = cast.ToInt(c.Request.Form[option.VarPage])
-		page = cast.ToInt(c.Request.Form[option.VarPageSize])
-	}
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 {
-		pageSize = option.PageSize
-	}
-	return
-}
 
 //上下文初始化
 func (c *Context) Init() {
@@ -70,5 +52,24 @@ func (c *Context) Init() {
 	c.PageInfo = &PageInfo{}
 	c.PageInfo.Page, c.PageInfo.PageSize = c.GetPage()
 	c.PageInfo.Offset = (c.PageInfo.Page - 1) * c.PageInfo.PageSize
-
 }
+
+
+//获取分页信息
+func (c *Context) GetPage() (page int, pageSize int) {
+	if c.Request.Method == "GET" {
+		page = cast.ToInt(c.Query(option.VarPage))
+		pageSize = cast.ToInt(c.Query(option.VarPageSize))
+	} else {
+		page = cast.ToInt(c.Request.Form[option.VarPage])
+		page = cast.ToInt(c.Request.Form[option.VarPageSize])
+	}
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = option.PageSize
+	}
+	return
+}
+

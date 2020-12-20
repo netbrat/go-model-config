@@ -1,0 +1,36 @@
+{
+    "conn_name": "default",
+    "db_name": "",
+    "table": "sys_role",
+    "order_by": "id asc",
+    "pk": "id",
+    "auto_increment": true,
+    "show_check": true,
+    "fields": [
+        {"name":"id", "title": "编码", "width": 60},
+        {"name":"name","title": "名称"},
+        {"name":"memo","title": "备注", "type": "areatext", "sortable": false},
+        {"name":"created_at","title": "创建时间"}
+    ],
+    "search_fields": [
+        {"name":"id","title": "角色", "where": "id=? or name like ?", "info": "请输入角色编码或名称"}
+    ],
+    "enums": {
+        "type": {"a": "abc"}
+    },
+    "base_search": {
+        "where": "a=1",
+        "alias": "alias",
+        "join": "left join",
+        "group": "group by"
+    },
+    "kvs": {
+        "default": {"key_fields": ["id"], "value_fields": ["name"],"key_connector": "-","value_connector": ""}
+    },
+    "javascript": {
+        "list_start": "lStart",
+        "list_end": "lEnd",
+        "edit_start": "eStart",
+        "edit_end": "eEnd"
+    }
+}

@@ -1,0 +1,36 @@
+{
+  "dbName": "abc",
+  "table": "base_operator",
+  "orderBy": "id asc",
+  "isTree": false,
+  "fields": {
+    "id": {"title": "编码", "pk": true},
+    "name": {"title": "名称"},
+    "memo": {"title": "备注","type": "multtext"},
+    "update_at": {"title": "更新时间"}
+  },
+  "kvs": {
+    "default": {"keyField": "id", "valueFields": ["name"],"connector": "-"}
+  },
+  "searchFields": {
+    "id": {"title": "运营商","where": "id='{{this}}' or name like '%{{this}%'", "info": "编码或名称"}
+  },
+
+  "baseSearch": {
+    "where": "a=1",
+    "alias": "alias",
+    "join": "left join",
+    "group": "group by"
+  },
+
+  "enums": {
+    "type": {"a": "abc"}
+  },
+
+  "js": {
+    "listStart": "lStart",
+    "listEnd": "lEnd",
+    "editStart": "eStart",
+    "editEnd": "eEnd"
+  }
+}
