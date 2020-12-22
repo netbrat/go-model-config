@@ -1,7 +1,10 @@
 package mc
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/netbrat/go-model-config/mcjson"
+	"io/ioutil"
 )
 
 /**
@@ -21,7 +24,7 @@ const (
 )
 
 //字段基础配置结构
-type baseField struct{
+type BaseField struct{
 	Name			string	`json:"name"`			//字段名 (必填）
 	Title 			string 	`json:"title"`			//标题 (默认为name值）
 	Type 			string	`json:"type"`			//字段类型(text:单行文本（默认） | areatext:多行文本 | enum:枚举(指定from) | outjoin:外链表(指定from)|date:日期, datetime:日期时间),如果此字段对应的表格是行权限范围表，则必须使用outjoin
@@ -38,8 +41,8 @@ type baseField struct{
 
 //字段配置结构
 type Field struct {
-	baseField
-	Editable		*bool  `json:"editable"`			//是否可编辑（默认true)
+	BaseField
+	Editable		bool  `json:"editable"`			//是否可编辑（默认true)
 	Alias			string	`json:"alias"`				//别名，与SQL中刚好相反，如SQL中：SUM(money) AS total，则此处填写sum(abc)，total为Column单项的key（默认为""）
 	Footer			string	`json:"footer"`				//此字段表尾汇总SQL，如SUM(money)，为""，则此字段不汇总
 	NoFilter		bool	`json:"no_filter"`			//数据保存时不对内容进行安全过虑(默认false)
@@ -53,7 +56,7 @@ type Field struct {
 
 //查询字段配置结构
 type SearchField struct {
-	baseField
+	BaseField
 	Where		string		`json:"where"`			//查询时的条件，表单传过来的值会替换此条件{{this}}字符串，如果是多选，则使用{{inThis}}
 	Values		[]string	`json:"values"`			//查询时的条件值，默认直接[]
 	Br			string		`json:"br"`				//表单换行显示
@@ -64,7 +67,7 @@ type SearchField struct {
 type BaseSearch struct {
 	Where	string			`json:"where"`			//基础查询条件 (默认"")
 	Alias	string			`json:"alias"`			//表别名 （默认表名）
-	Join	string			`json:"join"`				//外联SQL
+	Join	string			`json:"join"`			//外联SQL
 	Group	string			`json:"group"`			//分组SQL
 }
 
@@ -89,75 +92,82 @@ type JavaScript struct {
 //自定义模型整体配置结构
 type Config struct {
 	Name				string						`json:"-"`
-	ConnName			string						`json:"conn_name"`			//数据库连接名(默认：default)
+	ConnName			string						`json:"conn_name" default:"aaa"`			//数据库连接名(默认：default)
 	DbName				string						`json:"db_name"`			//数据库名(默认：数据库连接配置中的数据库名)
 	Table				string						`json:"table"`				//数据表名
-	Pk 					string						`json:"pk"`					//主键Id
+	Pk 					*string						`json:"pk" default:"ccc"`					//主键Id
 	AutoIncrement 		*bool						`json:"auto_increment"`		//主键是否自增长（默认true)
 	OrderBy				string						`json:"order_by"`			//默认排序
 	IsTree				bool						`json:"is_tree"`			//是否树型结构表
 	TreePathBit			int							`json:"tree_path_bit"`		//树型结构路径每层位数
 	TreeLevelField		string						`json:"tree_level_field"`	//树型结构的层级字段
 	TreePathField		string						`json:"tree_path_field"`	//树型结构的路径字段
-	ShowCheck			*bool						`json:"show_check"`			//列表是否显示多选框 (默认 true)
+	ShowCheck			bool						`json:"show_check"`			//列表是否显示多选框 (默认 true)
 	FieldIndexes		map[string]int				`json:"-"`					//字段索引
 	Fields				[]Field						`json:"fields"`				//字段列表
 	SearchFieldIndexes	map[string]int				`json:"-"`					//查询字段索引
 	SearchFields 		[]SearchField				`json:"search_fields"`		//查询字段列表
 	Enums				map[string]interface{}		`json:"enums"`				//枚举列表
-	BaseSearch			BaseSearch					`json:"base_search"`		//基础查询信息
+	BaseSearch			*BaseSearch					`json:"base_search"`		//基础查询信息
 	Kvs					map[string]Kv				`json:"kvs"`				//键值对配置结构
-	JavaScript			JavaScript					`json:"javascript"`//回调js
+	JavaScript			JavaScript					`json:"javascript"`			//回调js
 }
 
 
 func GetConfig(mcName string) (mc *Config, err error) {
 	file := fmt.Sprintf("%s%s.json",option.ConfigsFilePath, mcName)
 	mc = &Config{}
-	if err = jsonFileToStruct(file, mc); err!=nil{
+	data := []byte{}
+	if data, err = ioutil.ReadFile(file); err != nil{
 		return
+	}else{
+		data = bytes.TrimPrefix(data, []byte("\xef\xbb\xbf"))
+		if err = mcjson.JsonToStruct(data, mc); err != nil {
+			return
+		}
 	}
+
 	mc.Name = mcName
-	mc.parseConfig()
+	fmt.Println(mc.BaseSearch)
+	//mc.parseConfig()
 	return
 }
 
-func (mc *Config) parseConfig() {
-	if mc.ConnName == "" { mc.ConnName = "default" }
-	if mc.DbName == "" { mc.DbName = "" }
-	if mc.Table == "" { mc.Table = mc.Name }
-	if mc.Pk == "" { mc.Pk = "id" }
-	if mc.AutoIncrement == nil { *mc.AutoIncrement = true }
-	if mc.IsTree {
-		if mc.TreePathBit <= 0 { mc.TreePathBit = 2 }
-		if mc.TreeLevelField == "" { mc.TreeLevelField = "level" }
-		if mc.TreePathField == "" { mc.TreePathField = "path" }
-	}
-	if mc.ShowCheck == nil { *mc.ShowCheck = true}
-}
+//func (mc *Config) parseConfig() {
+//	if mc.ConnName == "" { mc.ConnName = "default" }
+//	if mc.DbName == "" { mc.DbName = "" }
+//	if mc.Table == "" { mc.Table = mc.Name }
+//	if mc.Pk == "" { mc.Pk = "id" }
+//	if mc.AutoIncrement == nil { *mc.AutoIncrement = true }
+//	if mc.IsTree {
+//		if mc.TreePathBit <= 0 { mc.TreePathBit = 2 }
+//		if mc.TreeLevelField == "" { mc.TreeLevelField = "level" }
+//		if mc.TreePathField == "" { mc.TreePathField = "path" }
+//	}
+//	if mc.ShowCheck == nil { *mc.ShowCheck = true}
+//}
 
 
-func (mc *Config) parseFields() {
-	for k, _ := range mc.Fields{
-		if mc.Fields[k].Title == "" {mc.Fields[k].Title = mc.Fields[k].Name}
-		if mc.Fields[k].Type == "" {mc.Fields[k].Title = FieldTypeText}
-		if mc.Fields[k].Multiple && mc.Fields[k].Separator == "" { mc.Fields[k].Separator = ","}
-		if mc.Fields[k].SelNullText == "" {mc.Fields[k].SelNullText = "请选择"}
-		if mc.Fields[k].Width <=0 { mc.Fields[k].Width = 120}
-		if mc.Fields[k].Height <=0 { mc.Fields[k].Height = 60}
-		if mc.Fields[k].Editable == nil {*mc.Fields[k].Editable = true}
-
-	}
-}
-
-func (mc *Config) parseSearchFields() {
-	for k, _ := range mc.SearchFields{
-		if mc.SearchFields[k].Title == "" {mc.SearchFields[k].Title = mc.Fields[k].Name}
-		if mc.SearchFields[k].Type == "" {mc.SearchFields[k].Title = FieldTypeText}
-		if mc.SearchFields[k].Multiple && mc.SearchFields[k].Separator == "" { mc.Fields[k].Separator = ","}
-		if mc.SearchFields[k].SelNullText == "" {mc.SearchFields[k].SelNullText = "请选择"}
-		if mc.SearchFields[k].Width <=0 { mc.SearchFields[k].Width = 120}
-		if mc.SearchFields[k].Height <=0 { mc.SearchFields[k].Height = 60}
-		if mc.SearchFields[k].Values == nil { mc.SearchFields[k].Values = []string{"?"}}
-	}
-}
+//func (mc *Config) parseFields() {
+//	for k, _ := range mc.Fields{
+//		if mc.Fields[k].Title == "" {mc.Fields[k].Title = mc.Fields[k].Name}
+//		if mc.Fields[k].Type == "" {mc.Fields[k].Title = FieldTypeText}
+//		if mc.Fields[k].Multiple && mc.Fields[k].Separator == "" { mc.Fields[k].Separator = ","}
+//		if mc.Fields[k].SelNullText == "" {mc.Fields[k].SelNullText = "请选择"}
+//		if mc.Fields[k].Width <=0 { mc.Fields[k].Width = 120}
+//		if mc.Fields[k].Height <=0 { mc.Fields[k].Height = 60}
+//		if mc.Fields[k].Editable == nil {*mc.Fields[k].Editable = true}
+//	}
+//}
+//
+//func (mc *Config) parseSearchFields() {
+//	for k, _ := range mc.SearchFields{
+//		if mc.SearchFields[k].Title == "" {mc.SearchFields[k].Title = mc.Fields[k].Name}
+//		if mc.SearchFields[k].Type == "" {mc.SearchFields[k].Title = FieldTypeText}
+//		if mc.SearchFields[k].Multiple && mc.SearchFields[k].Separator == "" { mc.Fields[k].Separator = ","}
+//		if mc.SearchFields[k].SelNullText == "" {mc.SearchFields[k].SelNullText = "请选择"}
+//		if mc.SearchFields[k].Width <=0 { mc.SearchFields[k].Width = 120}
+//		if mc.SearchFields[k].Height <=0 { mc.SearchFields[k].Height = 60}
+//		if mc.SearchFields[k].Values == nil { mc.SearchFields[k].Values = []string{"?"}}
+//	}
+//}

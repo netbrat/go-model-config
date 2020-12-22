@@ -21,6 +21,7 @@ func main(){
 	option.BaseControllerMapKey = "custom"
 	option.ConfigsFilePath = "./example/model_configs/"
 
+
 	if conf,err := mc.GetConfig("sys_role"); err!=nil{
 		panic(err)
 	}else{
