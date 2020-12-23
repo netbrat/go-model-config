@@ -6,19 +6,59 @@ import (
 )
 
 type DbConfig struct {
-	User         string
-	Password     string
-	Host         string
-	Port         int
-	DbName       string
-	Charset      string
-	MaxOpenConns int
-	MaxIdleConns int
+	User         string		`json:"user"`
+	Password     string		`json:"password"`
+	Host         string		`json:"host"`
+	Port         int		`json:"port"`
+	DbName       string		`json:"db_name"`
+	Charset      string		`json:"charset"`
+	MaxOpenConns int		`json:"max_open_conns"`
+	MaxIdleConns int		`json:"max_idle_conns"`
 }
 
-var dbMap = map[string]*gorm.DB{}
+type DbOption struct {
+	DB				*gorm.DB
+	ConnName 		string
+	DbName			string
+	Table			string
+	Pk				string
+	AutoIncrement 	bool
+	UniqueFields	[]string
+}
+
+func (do *DbOption) Set(connName string, dbName string, table string, pk string, autoIncrement bool, uniqueFields []string) {
+	do.ConnName = connName
+	do.Table = table
+	do.DB = GetDB(connName)
+	if dbName == ""{
+		dbName = GetDbNameByConfig(connName)
+	}
+	do.DbName = dbName
+	do.AutoIncrement = autoIncrement
+	do.UniqueFields = uniqueFields
+}
+
+//数据库连接配置map
 var dbConfigMap = map[string]DbConfig{}
 
+//数据库连接池
+var dbMap = map[string]*gorm.DB{}
+
+//根据数据库配置名，获取数据库名称
+func GetDbNameByConfig(connName string) string {
+	dbConfig, ok := dbConfigMap[connName]
+	if !ok{
+		panic(fmt.Sprintf("数据库连接配置项不存在[%s]", connName))
+	}
+	return dbConfig.DbName
+}
+
+//添加数据库连接配置
+func AppendDbConfig(connName string , dbConfig DbConfig){
+	dbConfigMap[connName] = dbConfig
+}
+
+//获取一个数据库连接对象
 func GetDB(connName string) *gorm.DB {
 	dbConfig, ok := dbConfigMap[connName]
 	if !ok {

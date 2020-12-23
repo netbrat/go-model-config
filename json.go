@@ -38,39 +38,52 @@ func McJsonFileUnmarshal(file string, obj interface{}) error {
 func reflectSetStruct(obj interface{},data map[string]interface{}) (err error){
 	t := reflect.TypeOf(obj).Elem()
 	v := reflect.ValueOf(obj).Elem()
-
+	sfName := ""
+	jsonTag := ""
 	for i := 0; i < t.NumField(); i++ {
 		sf := t.Field(i)
 		sv := v.FieldByName(sf.Name)
-
+		sfName = sf.Name
 		//获取tag
 		tag := strings.Split(sf.Tag.Get("json"),",") //获取json tag
 		defValue := sf.Tag.Get("default") //获取 default tag
+		isRequire := cast.ToBool(sf.Tag.Get("require")) //获取 require tag
 		if tag[0] == "" { tag[0] = sf.Name } // 如果json tag为空，则使用字段名
 		if tag[0] == "-" { continue }  //如果不转换，则跳过
-
+		jsonTag = tag[0]
 		// 从json中获取值
 		var value interface{} = nil
 		if data != nil {
 			value, _ = data[tag[0]]
 			// 执行动态动态脚本, 或设置默认值
 			if value, err = jsFunc(value); err != nil{
-				return
-			}
-		}
-		if sf.Anonymous { // 匿名字段
-			value = data
-		}
-		switch sf.Type.Kind() {
-		//case reflect.Ptr: // 指针
-		//	reflectSetPar(sv, value)
-		default:
-			if err = reflectSetValue(sf.Type, sv, value, defValue); err != nil {
+				err = fmt.Errorf("%s(%s) JS脚本执行错误：%s",sf.Name,jsonTag, err.Error())
 				return
 			}
 		}
 
+		if isRequire{
+			if value == nil || cast.ToString(value) == ""{
+				err = fmt.Errorf("%s(%s) 为必填项", sf.Name, jsonTag)
+				return
+			}
+		}
+
+
+		if sf.Anonymous { // 匿名字段
+			value = data
+		}
+		if err = reflectSetValue(sf.Type, sv, value, defValue); err != nil {
+			err = fmt.Errorf("%s(%s) 解晰发生错误：%s", sfName, jsonTag, err.Error())
+			return
+		}
 	}
+	defer func(){
+		if r := recover(); r != nil{
+			err =  fmt.Errorf(fmt.Sprintf("%s(%s) 解晰发生错误: %s",sfName,jsonTag, r))
+		}
+	}()
+
 	return
 }
 
@@ -105,6 +118,9 @@ func reflectSetValue(rt reflect.Type, rv reflect.Value, value interface{}, defVa
 			rv.SetString(tempV)
 		}
 	case reflect.Bool: //布尔型
+		if cast.ToString(value) == "" && defValue != ""{
+			value = defValue
+		}
 		tempV := cast.ToBool(value)
 		if isPtr {
 			rv.Set(reflect.ValueOf(&tempV))

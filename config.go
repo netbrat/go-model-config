@@ -2,6 +2,7 @@ package mc
 
 import (
 	"fmt"
+	"strings"
 )
 
 /**
@@ -17,6 +18,8 @@ const (
 	FieldTypeDate			= "date"		//日期
 	FieldTypeDatetime		= "datetime"	//日期时间
 )
+var FieldTypes []string = []string {FieldTypeText, FieldTypeAreaText, FieldTypeEnum, FieldTypeOutJoin, FieldTypeDate, FieldTypeDatetime}
+
 
 //字段基础配置结构
 type BaseField struct{
@@ -83,27 +86,27 @@ type JavaScript struct {
 }
 
 
-
 //自定义模型整体配置结构
 type Config struct {
 	Name				string						`json:"-"`
 	ConnName			string						`json:"conn_name" default:"default"`		//数据库连接名(默认：default)
 	DbName				string						`json:"db_name"`							//数据库名(默认：数据库连接配置中的数据库名)
 	Table				string						`json:"table"`								//数据表名
-	Pk 					*string						`json:"pk" default:"id"`					//主键Id
-	AutoIncrement 		*bool						`json:"auto_increment" default:"true"`		//主键是否自增长（默认true)
-	OrderBy				string						`json:"order_by"`							//默认排序
+	Pk 					string						`json:"pk" default:"id"`					//主键Id
+	AutoIncrement 		bool						`json:"auto_increment" default:"true"`		//主键是否自增长（默认true)
+	UniqueFields		[]string					`json:"unique_field"`						//唯一性字段列表
+	OrderBy				string						`json:"order_by" default:"id asc"`			//默认排序
 	IsTree				bool						`json:"is_tree"`							//是否树型结构表
 	TreePathBit			int							`json:"tree_path_bit" default:"2"`			//树型结构路径每层位数
 	TreeLevelField		string						`json:"tree_level_field" default:"level"`	//树型结构的层级字段
 	TreePathField		string						`json:"tree_path_field" default:"path"`		//树型结构的路径字段
 	ShowCheck			bool						`json:"show_check" default:"true"`			//列表是否显示多选框 (默认 true)
-	FieldIndexes		map[string]int				`json:"-"`									//字段索引
+	FieldIndexes		map[string]int				`json:"field_indexes"`						//字段索引
 	Fields				[]Field						`json:"fields"`								//字段列表
-	SearchFieldIndexes	map[string]int				`json:"-"`									//查询字段索引
+	SearchFieldIndexes	map[string]int				`json:"search_field_indexes"`				//查询字段索引
 	SearchFields 		[]SearchField				`json:"search_fields"`						//查询字段列表
 	Enums				map[string]interface{}		`json:"enums"`								//枚举列表
-	BaseSearch			*BaseSearch					`json:"base_search"`						//基础查询信息
+	BaseSearch			BaseSearch					`json:"base_search"`						//基础查询信息
 	Kvs					map[string]Kv				`json:"kvs"`								//键值对配置结构
 	JavaScript			JavaScript					`json:"javascript"`							//回调js
 }
@@ -115,48 +118,48 @@ func GetConfig(mcName string) (mc *Config, err error) {
 	if err = McJsonFileUnmarshal(file,mc); err != nil{
 		return
 	}
-
 	mc.Name = mcName
-	fmt.Println(mc.BaseSearch)
-	//mc.parseConfig()
+	if err = mc.parseConfig(); err != nil{
+		return
+	}
 	return
 }
 
-//func (mc *Config) parseConfig() {
-//	if mc.ConnName == "" { mc.ConnName = "default" }
-//	if mc.DbName == "" { mc.DbName = "" }
-//	if mc.Table == "" { mc.Table = mc.Name }
-//	if mc.Pk == "" { mc.Pk = "id" }
-//	if mc.AutoIncrement == nil { *mc.AutoIncrement = true }
-//	if mc.IsTree {
-//		if mc.TreePathBit <= 0 { mc.TreePathBit = 2 }
-//		if mc.TreeLevelField == "" { mc.TreeLevelField = "level" }
-//		if mc.TreePathField == "" { mc.TreePathField = "path" }
-//	}
-//	if mc.ShowCheck == nil { *mc.ShowCheck = true}
-//}
+func (mc *Config) parseConfig() error {
+	if mc.DbName == "" { mc.DbName = "" } //如果没有指定数据库，使用连接配置中的数据库
+	if mc.Table == "" { mc.Table = mc.Name } //如果没有指定表名，使用模型配制名称
+	if mc.UniqueFields == nil {
+		mc.UniqueFields = []string{mc.Pk}
+	}
+	mc.FieldIndexes = map[string]int{}
+	for i,_ := range mc.Fields {
+		mc.FieldIndexes[mc.Fields[i].Name] = i
+		if err := parseField(&mc.Fields[i].BaseField); err != nil{
+			return err
+		}
+	}
+	mc.SearchFieldIndexes = map[string]int{}
+	for i, _ := range mc.SearchFields {
+		mc.SearchFieldIndexes[mc.SearchFields[i].Name] = i
+		if err := parseField(&mc.SearchFields[i].BaseField); err != nil{
+			return err
+		}
+	}
+	return nil
+}
 
-
-//func (mc *Config) parseFields() {
-//	for k, _ := range mc.Fields{
-//		if mc.Fields[k].Title == "" {mc.Fields[k].Title = mc.Fields[k].Name}
-//		if mc.Fields[k].Type == "" {mc.Fields[k].Title = FieldTypeText}
-//		if mc.Fields[k].Multiple && mc.Fields[k].Separator == "" { mc.Fields[k].Separator = ","}
-//		if mc.Fields[k].SelNullText == "" {mc.Fields[k].SelNullText = "请选择"}
-//		if mc.Fields[k].Width <=0 { mc.Fields[k].Width = 120}
-//		if mc.Fields[k].Height <=0 { mc.Fields[k].Height = 60}
-//		if mc.Fields[k].Editable == nil {*mc.Fields[k].Editable = true}
-//	}
-//}
-//
-//func (mc *Config) parseSearchFields() {
-//	for k, _ := range mc.SearchFields{
-//		if mc.SearchFields[k].Title == "" {mc.SearchFields[k].Title = mc.Fields[k].Name}
-//		if mc.SearchFields[k].Type == "" {mc.SearchFields[k].Title = FieldTypeText}
-//		if mc.SearchFields[k].Multiple && mc.SearchFields[k].Separator == "" { mc.Fields[k].Separator = ","}
-//		if mc.SearchFields[k].SelNullText == "" {mc.SearchFields[k].SelNullText = "请选择"}
-//		if mc.SearchFields[k].Width <=0 { mc.SearchFields[k].Width = 120}
-//		if mc.SearchFields[k].Height <=0 { mc.SearchFields[k].Height = 60}
-//		if mc.SearchFields[k].Values == nil { mc.SearchFields[k].Values = []string{"?"}}
-//	}
-//}
+func parseField(field *BaseField) error{
+	//如果字段没有指定标题，使用字段名
+	if field.Title == "" { field.Title = field.Name}
+	//如果指定的字段类型不符，使用默认的text类型
+	if ! inArray(field.Type, FieldTypes) {
+		field.Type = FieldTypeText
+	}else {
+		field.Type = strings.ToLower(field.Type)
+	}
+	//如果指定的字段类型为text 或 outjoin时，则from必填
+	if (field.Type == FieldTypeEnum || field.Type == FieldTypeOutJoin) && field.From == "" {
+		return fmt.Errorf("当 %s 字段类型为 %s 时，必须指定 from 设置", field.Name, field.Type)
+	}
+	return nil
+}
