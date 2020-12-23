@@ -60,7 +60,7 @@ func inArray(obj interface{}, target interface{}) bool {
 	return false
 }
 
-func jsonFileToStruct(file string, obj interface{}) error {
+func JsonFileToStruct(file string, obj interface{}) error {
 	if data, err := ioutil.ReadFile(file); err != nil{
 		return err
 	}else{
@@ -68,3 +68,5 @@ func jsonFileToStruct(file string, obj interface{}) error {
 		return json.Unmarshal(data, obj)
 	}
 }
+
+
