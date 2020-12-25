@@ -2,21 +2,25 @@ package mc
 
 import (
 	"fmt"
+	"github.com/jinzhu/gorm"
 	"reflect"
 )
 
 type SearchOption struct {
-	Where		string			//查询条件
-	WhereValue	[]interface{}	//查询值
-	Fields		[]string		//查询字段
-	Page		int				//查询页码
-	PageSize 	int				//分页大小
-	OrderBy		string			//排序
-	Join		string			//外联
-	Group		string			//分组
-	Alias		string			//别名
-	Having		string
-	NotTotal	bool			//是否不查询总记录数
+	Where			string					//查询条件
+	WhereValue		[]interface{}			//查询值
+	Fields			[]string				//查询字段
+	Page			int						//查询页码
+	PageSize 		int						//分页大小
+	OrderBy			string					//排序
+	Join			string					//外联
+	Group			string					//分组
+	Alias			string					//别名
+	Having			string
+	NotTotal		bool					//是否不查询总记录数
+	NotRowAuth		bool					//是否不使用行级权限,默认为true
+	SearchValues 	map[string]interface{}	//查询字段值
+	IsSearch		bool					//是否使用查询字段进行查询
 }
 
 func (so SearchOption) Offset() int{
@@ -26,11 +30,11 @@ func (so SearchOption) Offset() int{
 type BaseModel struct {
 	DbOption 	*DbOption
 }
+
 //设置数据库操作选项
-func (bm *BaseModel) SetDbOption(connName string, dbName string, table string, pk string, autoIncrement bool, uniqueFields []string) *BaseModel{
+func (bm *BaseModel) SetDbOption(connName string, dbName string, table string, pk string, autoIncrement bool, uniqueFields []string){
 	bm.DbOption = &DbOption{}
 	bm.DbOption.Set(connName, dbName, table, pk, autoIncrement, uniqueFields)
-	return bm
 }
 
 //获取单条记录
@@ -148,4 +152,17 @@ func (bm *BaseModel) Delete(id interface{}) (total int64, err error){
 	}
 	db := bm.DbOption.DB.Table(bm.DbOption.Table).Delete("%s IN ?", bm.DbOption.Pk, delIds)
 	return db.RowsAffected, db.Error
+}
+
+// @title parseWhere
+// @description 分析查询条件
+// @param	db		*gorm.DB
+// @param 	so 		SearchOption	模型查询字段各项的值
+// @return	rdb		*gorm.DB		附带最终的查询条件的db对象
+func (bm *BaseModel) parseWhere(db *gorm.DB, so SearchOption) (rdb *gorm.DB) {
+	rdb = db
+	if so.Where != "" {
+		rdb = rdb.Where(so.Where, so.WhereValue...)
+	}
+	return
 }

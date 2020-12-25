@@ -39,7 +39,7 @@ func ToCamelCase(str string, lower bool) string {
 }
 
 //查找元素是否在数组中
-func inArray(obj interface{}, target interface{}) bool {
+func InArray(obj interface{}, target interface{}) bool {
 	targetValue := reflect.ValueOf(target)
 	switch reflect.TypeOf(target).Kind() {
 	case reflect.Slice, reflect.Array:

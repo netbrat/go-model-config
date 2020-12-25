@@ -74,13 +74,13 @@ func reflectSetStruct(obj interface{},data map[string]interface{}) (err error){
 			value = data
 		}
 		if err = reflectSetValue(sf.Type, sv, value, defValue); err != nil {
-			err = fmt.Errorf("%s(%s) 解晰发生错误：%s", sfName, jsonTag, err.Error())
+			err = fmt.Errorf("%s(%s) ：%s", sfName, jsonTag, err.Error())
 			return
 		}
 	}
 	defer func(){
 		if r := recover(); r != nil{
-			err =  fmt.Errorf(fmt.Sprintf("%s(%s) 解晰发生错误: %s",sfName,jsonTag, r))
+			err =  fmt.Errorf(fmt.Sprintf("%s(%s) : %s",sfName,jsonTag, r))
 		}
 	}()
 
@@ -203,29 +203,28 @@ func reflectSetValue(rt reflect.Type, rv reflect.Value, value interface{}, defVa
 
 // 执行动态动态脚本, 或设置默认值
 func jsFunc(value interface{}) (v interface{}, err error){
+	if value == nil || reflect.TypeOf(value).Kind() != reflect.String {
+		return
+	}
 	v = value
-	if value != nil {
-		if reflect.TypeOf(value).Kind() == reflect.String {
-			vString := value.(string)
-			if len(vString) > 3 && strings.ToUpper(vString[:3]) == "JS:" {
-				script := fmt.Sprintf("function callfun(search,auth){%s}", string(vString[3:]))
-				//script := string(vString[3:])
-				vm := goja.New()
-				search := vm.NewObject()
-				_ = search.Set("a",2)
-				auth := vm.NewObject()
-				_ = auth.Set("b",3)
-				vm.Set("search",search)
-				vm.Set("auth",auth)
-				if v, err = vm.RunString(script); err != nil{
-					return
-				}
-				if callFun, ok := goja.AssertFunction(vm.Get("callfun")); !ok {
-					err = fmt.Errorf("Not a js function")
-				}else {
-					v, err = callFun(goja.Undefined(), vm.ToValue(search), vm.ToValue(auth))
-				}
-			}
+	vString := value.(string)
+	if len(vString) > 3 && strings.ToUpper(vString[:3]) == "JS:" {
+		script := fmt.Sprintf("function callfun(search,auth){%s}", string(vString[3:]))
+		//script := string(vString[3:])
+		vm := goja.New()
+		search := vm.NewObject()
+		_ = search.Set("a",2)
+		auth := vm.NewObject()
+		_ = auth.Set("b",3)
+		vm.Set("search",search)
+		vm.Set("auth",auth)
+		if v, err = vm.RunString(script); err != nil{
+			return
+		}
+		if callFun, ok := goja.AssertFunction(vm.Get("callfun")); !ok {
+			err = fmt.Errorf("Not a js function")
+		}else {
+			v, err = callFun(goja.Undefined(), vm.ToValue(search), vm.ToValue(auth))
 		}
 	}
 	return

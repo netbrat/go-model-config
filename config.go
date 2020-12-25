@@ -21,25 +21,25 @@ const (
 var FieldTypes []string = []string {FieldTypeText, FieldTypeAreaText, FieldTypeEnum, FieldTypeOutJoin, FieldTypeDate, FieldTypeDatetime}
 
 
-//字段基础配置结构
-type BaseField struct{
-	Name			string	`json:"name" require:"true"`			//字段名 (必填）
-	Title 			string 	`json:"title"`							//标题 (默认为name值）
-	Type 			string	`json:"type" default:"text"`			//字段类型(text:单行文本（默认） | areatext:多行文本 | enum:枚举(指定from) | outjoin:外链表(指定from)|date:日期, datetime:日期时间),如果此字段对应的表格是行权限范围表，则必须使用outjoin
-	Info 			string	`json:"info"`							//字段说明（默认""）
-	From 			string	`json:"from"`							//指定字段数据来源,当type为enum或outjoin时有效且必填,当为outjoin时填写模型配制ID
-	Multiple 		bool	`json:"multiple"`						//是否支持多选（默认false）
-	Separator 		string	`json:"separator" default:","`			//多选时选项的分隔符，尽量使用默认值逗号，因为mysql的MATCH AGAINST只使用逗号分隔，除非你的业务中不使用些语句（默认逗号,)
-	Default			string	`json:"default"`						//默认值（默认""）
-	Width			int		`json:"width" default:"120"`			//显示宽度（默认120）
-	Height			int		`json:"height" default:"60"`			//多行时的行数，仅当text='multitext'有效 （默认60）
-	SelNullText 	string	`json:"sel_null_text" defalut:"请选择"`	//下拉型默认未选情况下显示的空值文本,当"NO"时不显示，当为""时显示“请选择",默认（"")
-	ReturnPath 		bool	`json:"return_path"` 					//下拉列表返回路径，而不是KEY，仅针对树型outjoin类型有效 默认 false
+//字段基础配置对象
+type ConfBaseField struct{
+	Name			string		`json:"name" require:"true"`			//字段名 (必填）
+	Title 			string 		`json:"title"`							//标题 (默认为name值）
+	Type 			string		`json:"type" default:"text"`			//字段类型(text:单行文本（默认） | areatext:多行文本 | enum:枚举(指定from) | outjoin:外链表(指定from)|date:日期, datetime:日期时间),如果此字段对应的表格是行权限范围表，则必须使用outjoin
+	Info 			string		`json:"info"`							//字段说明（默认""）
+	From 			string		`json:"from"`							//指定字段数据来源,当type为enum或outjoin时有效且必填,当为outjoin时填写模型配制ID
+	Multiple 		bool		`json:"multiple"`						//是否支持多选（默认false）
+	//Separator 		string		`json:"separator" default:","`			//多选时选项的分隔符，尽量使用默认值逗号，因为mysql的MATCH AGAINST只使用逗号分隔，除非你的业务中不使用些语句（默认逗号,)
+	Default			interface{}	`json:"default"`						//默认值（默认""）
+	Width			int			`json:"width" default:"120"`			//显示宽度（默认120）
+	Height			int			`json:"height" default:"60"`			//多行时的行数，仅当text='multitext'有效 （默认60）
+	SelNullText 	string		`json:"sel_null_text" defalut:"请选择"`	//下拉型默认未选情况下显示的空值文本,当"NO"时不显示，当为""时显示“请选择",默认（"")
+	ReturnPath 		bool		`json:"return_path"` 					//下拉列表返回路径，而不是KEY，仅针对树型outjoin类型有效 默认 false
 }
 
-//字段配置结构
-type Field struct {
-	BaseField
+//字段配置对象
+type ConfField struct {
+	ConfBaseField
 	Editable		bool  	`json:"editable" default:"true"`	//是否可编辑（默认true)
 	Alias			string	`json:"alias"`						//别名，与SQL中刚好相反，如SQL中：SUM(money) AS total，则此处填写sum(abc)，total为Column单项的key（默认为""）
 	Footer			string	`json:"footer"`						//此字段表尾汇总SQL，如SUM(money)，为""，则此字段不汇总
@@ -52,33 +52,34 @@ type Field struct {
 	Require			bool	`json:"require"`					//必填字段(默认false)
 }
 
-//查询字段配置结构
-type SearchField struct {
-	BaseField
-	Where		string		`json:"where"`						//查询时的条件，表单传过来的值会替换此条件{{this}}字符串，如果是多选，则使用{{inThis}}
+//查询字段配置对象
+type ConfSearchField struct {
+	ConfBaseField
+	Where		string		`json:"where"`		//查询时的条件，表单传过来的值会替换此条件{{this}}字符串，如果是多选，则使用{{inThis}}
 	Values		[]string	`json:"values"`		//查询时的条件值，默认直接[]
-	Br			bool		`json:"br"`							//表单换行显示
+	Br			bool		`json:"br"`			//表单换行显示
 }
 
 
-//基础查询配置结构
-type BaseSearch struct {
-	Where	string			`json:"where"`			//基础查询条件 (默认"")
-	Alias	string			`json:"alias"`			//表别名 （默认表名）
-	Join	string			`json:"join"`			//外联SQL
-	Group	string			`json:"group"`			//分组SQL
+//基础查询配置对象
+type ConfBaseSearch struct {
+	Where	string		`json:"where"`		//基础查询条件 (默认"")
+	Alias	string		`json:"alias"`		//表别名 （默认表名）
+	Join	string		`json:"join"`		//外联SQL
+	Group	string		`json:"group"`		//分组SQL
 }
 
-//键值对配置结构
-type Kv struct {
-	KeyFields		[]string		`json:"key_fields"`				// 主键（必填）
-	ValueFields		[]string		`json:"value_fields"`			// 值字段列表 (必填）
-	KeyConnector	string			`json:"value_connector"`		//多关键字段连接符（默认_)
-	ValueConnector 	string			`json:"value_connector"`		// 多值字段连接符（默认_）
+//键值对配置对象
+type ConfKv struct {
+	KeyFields		[]string	`json:"key_fields"`				// 主键（必填）
+	ValueFields		[]string	`json:"value_fields"`			// 值字段列表 (必填）
+	KeySep			string		`json:"value_sep"`		// 多关键字段分隔符（默认_)
+	ValueSep 		string		`json:"value_sep"`		// 多值字段分隔符（默认_）
+	Where			string		`json:"where"`					//查询条件（只作用此kv选择中)
 }
 
-//回调js配置结构
-type JavaScript struct {
+//回调js配置对象
+type ConfJavascript struct {
 	ListStart	string		`json:"list_start"`			//显示列表开始时回调
 	ListEnd		string		`json:"list_end"`			//显示列表结果时回调
 	EditStart	string		`json:"edit_start"`			//编辑弹窗显示回调
@@ -86,13 +87,13 @@ type JavaScript struct {
 }
 
 
-//自定义模型整体配置结构
+//自定义模型整体配置对象
 type Config struct {
 	Name				string						`json:"-"`
 	ConnName			string						`json:"conn_name" default:"default"`		//数据库连接名(默认：default)
 	DbName				string						`json:"db_name"`							//数据库名(默认：数据库连接配置中的数据库名)
 	Table				string						`json:"table"`								//数据表名
-	Pk 					string						`json:"pk" default:"id"`					//主键Id
+	PkField 			string						`json:"pk_field" default:"id"`				//主键字段名
 	AutoIncrement 		bool						`json:"auto_increment" default:"true"`		//主键是否自增长（默认true)
 	UniqueFields		[]string					`json:"unique_field"`						//唯一性字段列表
 	OrderBy				string						`json:"order_by" default:"id asc"`			//默认排序
@@ -102,62 +103,80 @@ type Config struct {
 	TreePathField		string						`json:"tree_path_field" default:"path"`		//树型结构的路径字段
 	ShowCheck			bool						`json:"show_check" default:"true"`			//列表是否显示多选框 (默认 true)
 	FieldIndexes		map[string]int				`json:"field_indexes"`						//字段索引
-	Fields				[]Field						`json:"fields"`								//字段列表
+	Fields				[]ConfField					`json:"fields"`								//字段列表
 	SearchFieldIndexes	map[string]int				`json:"search_field_indexes"`				//查询字段索引
-	SearchFields 		[]SearchField				`json:"search_fields"`						//查询字段列表
+	SearchFields 		[]ConfSearchField			`json:"search_fields"`						//查询字段列表
 	Enums				map[string]interface{}		`json:"enums"`								//枚举列表
-	BaseSearch			BaseSearch					`json:"base_search"`						//基础查询信息
-	Kvs					map[string]Kv				`json:"kvs"`								//键值对配置结构
-	JavaScript			JavaScript					`json:"javascript"`							//回调js
+	BaseSearch			ConfBaseSearch				`json:"base_search"`						//基础查询信息
+	Kvs					map[string]ConfKv			`json:"kvs"`								//键值对配置结构
+	JavaScript			ConfJavascript				`json:"javascript"`							//回调js
 }
 
-
-func GetConfig(mcName string) (mc *Config, err error) {
-	file := fmt.Sprintf("%s%s.json",option.ConfigsFilePath, mcName)
-	mc = &Config{}
-	if err = McJsonFileUnmarshal(file,mc); err != nil{
+// @title GetConfig
+// @description 从JSON配置文件中获取配置信息
+// @param	configName	string	配置名称（文件名)
+// @return	config		*Config 配置对象
+// @return	err			error	错误信息
+func GetConfig(configName string) (config *Config, err error) {
+	file := fmt.Sprintf("%s%s.json",option.ConfigsFilePath, configName)
+	config = &Config{}
+	if err = McJsonFileUnmarshal(file,config); err != nil{
+		err = fmt.Errorf(fmt.Sprintf("读取模型配置[%s]信息出错：%s", configName, err.Error()))
 		return
 	}
-	mc.Name = mcName
-	if err = mc.parseConfig(); err != nil{
+	config.Name = configName
+	if err = config.parseConfig(); err != nil{
+		err = fmt.Errorf(fmt.Sprintf("解析模型配置[%s]出错：%s", configName, err.Error()))
 		return
 	}
 	return
 }
 
+// 分析配置信息
 func (mc *Config) parseConfig() error {
 	if mc.DbName == "" { mc.DbName = "" } //如果没有指定数据库，使用连接配置中的数据库
 	if mc.Table == "" { mc.Table = mc.Name } //如果没有指定表名，使用模型配制名称
-	if mc.UniqueFields == nil {
-		mc.UniqueFields = []string{mc.Pk}
+	if mc.UniqueFields == nil {	//记录唯一字段列表
+		mc.UniqueFields = []string{mc.PkField}
 	}
+	if mc.BaseSearch.Alias == "" { //如果表没指定别名，就直接使用表名作别名
+		mc.BaseSearch.Alias = mc.Table
+	}
+	// 分析列表字段的基础字段信息
 	mc.FieldIndexes = map[string]int{}
 	for i,_ := range mc.Fields {
-		mc.FieldIndexes[mc.Fields[i].Name] = i
-		if err := parseField(&mc.Fields[i].BaseField); err != nil{
+		f := &mc.Fields[i]
+		mc.FieldIndexes[f.Name] = i
+		if err := parseField(&f.ConfBaseField); err != nil{
 			return err
 		}
 	}
+	// 分析查询字段的基础字段信息
 	mc.SearchFieldIndexes = map[string]int{}
 	for i, _ := range mc.SearchFields {
-		mc.SearchFieldIndexes[mc.SearchFields[i].Name] = i
-		if err := parseField(&mc.SearchFields[i].BaseField); err != nil{
+		sf := &mc.SearchFields[i]
+		mc.SearchFieldIndexes[sf.Name] = i
+		if err := parseField(&sf.ConfBaseField); err != nil{
 			return err
+		}
+		if sf.Values == nil {
+			sf.Values = []string { "?" }
 		}
 	}
 	return nil
 }
 
-func parseField(field *BaseField) error{
-	//如果字段没有指定标题，使用字段名
+// 分析基础字段信息
+func parseField(field *ConfBaseField) error{
+	// 如果字段没有指定标题，使用字段名
 	if field.Title == "" { field.Title = field.Name}
-	//如果指定的字段类型不符，使用默认的text类型
-	if ! inArray(field.Type, FieldTypes) {
+	// 如果指定的字段类型不符，使用默认的text类型
+	if ! InArray(field.Type, FieldTypes) {
 		field.Type = FieldTypeText
 	}else {
 		field.Type = strings.ToLower(field.Type)
 	}
-	//如果指定的字段类型为text 或 outjoin时，则from必填
+	// 如果指定的字段类型为 text 或 outjoin 时，则from必填
 	if (field.Type == FieldTypeEnum || field.Type == FieldTypeOutJoin) && field.From == "" {
 		return fmt.Errorf("当 %s 字段类型为 %s 时，必须指定 from 设置", field.Name, field.Type)
 	}

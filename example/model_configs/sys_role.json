@@ -3,7 +3,7 @@
     "db_name": "JS:return search.a+auth.b;",
     "table": "sys_role",
     "order_by": "id asc",
-    "pk": "",
+    "pk_field": "",
     "auto_increment": true,
     "show_check": true,
     "fields": [
@@ -25,7 +25,7 @@
         "group": "group by"
     },
     "kvs": {
-        "default": {"key_fields": ["id","aa"], "value_fields": ["name"],"key_connector": "-","value_connector": ""}
+        "default": {"key_fields": ["id","aa"], "value_fields": ["name"],"key_sep": "-","value_sep": ""}
     },
     "javascript": {
         "list_start": "lStart",
