@@ -15,7 +15,7 @@ type Option struct {
 	ErrorTemplate   			string    	//错误页面模版				默认值 "error.html"
 	RouterMap       			RouterMap 	//路由列表					默认值 nil
 	NotAuthRedirect 			string    	//未登录跳转到页面地址 		默认值 "/admin/public/login.html"
-	UrlPathSeparator			string		//URL路径之间的分割符号（不能使用_下线线）	默认为 "/"
+	UrlPathSep					string		//URL路径之间的分割符号（不能使用_下线线）	默认为 "/"
 	UrlHtmlSuffix 				string		//URL伪静态后缀设置			默认为 "html"
 	BaseModuleMapKey			string		//全局基础模块key			默认值 "base"
 	BaseControllerMapKey		string		//全局基础控制器key			默认值 "base"
@@ -34,7 +34,7 @@ var option = Option{
 	ErrorTemplate:              "error.html",
 	RouterMap:                  RouterMap{},
 	NotAuthRedirect:            "/public/login.html",
-	UrlPathSeparator:           "/",
+	UrlPathSep:           		"/",
 	UrlHtmlSuffix:              "html",
 	BaseModuleMapKey:           "base",
 	BaseControllerMapKey:       "base",

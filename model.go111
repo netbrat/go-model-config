@@ -9,131 +9,209 @@ import (
 )
 
 type KvsSearchOption struct {
+	DB			*gorm.DB		//使用的数据查询对象，如为nil时，使用model内置db对象
 	KvName		string			//kv配置项名
 	ExtraWhere	interface{}		//附加的查询条件
-	ReturnPath	bool			//当模型为树型结构时，返回的key是否使用path代替
+	returnPath	bool			//当模型为树型结构时，返回的key是否使用path代替
 	NotRowAuth	bool			//是否不使用行级权限过滤条件
 	Indent		string			//当模型为树型结构时，层级缩进符, 空字符串时不缩进
 	ExtraFields	[]string		//额外附加的查询字段
 }
 
 //模型结构体
-type ConfigModel struct {
-	db		*gorm.DB
-	config  *Config
+type model struct {
+	db 				*gorm.DB
+	connName 		string
+	dbName			string
+	table			string
+	pkField			string
+	autoIncrement 	bool
+	uniqueFields	[]string
 }
 
+type configModel struct {
+	model
+	config 			*Config
+	configName		string
+}
+
+
+
+// 新建一个模型
+// @param connName 		数据库连接配置名
+// @param dbName		数据库名
+// @param table 		数据表名
+// @param pkField		主键字段名	 	默认 id
+// @param autoIncrement	主键是否自增长
+// @param uniqueFields	唯一性字段列表 （不包括主键，可为nil)
+func NewModel(connName string, dbName string, table string, pkField string, autoIncrement bool, uniqueFields []string) *model {
+	if connName == "" || table == "" {
+		panic("connName 和 table 不能为空字符串")
+	}
+	if pkField == "" {
+		pkField = "id"
+	}
+	db, err := GetDB(connName)
+	if err != nil{
+		panic(fmt.Errorf("创建model[%s]失败，数据库连接不存在", connName))
+	}
+	m := &model{
+		db: 			db,
+		connName: 		connName,
+		dbName:			dbName,
+		table: 			table,
+		pkField: 		pkField,
+		autoIncrement: 	autoIncrement,
+		uniqueFields: 	uniqueFields,
+	}
+	m.db = m.db.Table(table)
+	return m
+}
 
 // 新建一个自定义配制模型
 // @param configName string 配制名
-func NewConfigModel(configName string) (*ConfigModel, error) {
+func NewConfigModel(configName string) *configModel {
 	//读取模型配置文件
-	config, err := GetFileConfig(configName)
+	config, err := GetConfig(configName)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	db, err := GetDB(config.ConnName)
-	if err != nil {
-		return nil, err
-	}
-	tb := fmt.Sprintf("%s AS %s", config.Table, config.Alias)
-	if config.DBName != "" {
-		tb = fmt.Sprintf("`%s`.%s", config.DBName, tb)
-	}
-	m := &ConfigModel{db: db, config: config}
-	m.db.Table(tb)
-	m.db.Joins(strings.Join(config.Joins," "))
-	m.db.Group(strings.Join(m.fieldsAddAlias(config.Groups), ","))
-	m.db.Order(strings.Join(m.fieldsAddAlias(config.Orders), ","))
-
-	return m, nil
+	cm := &configModel{
+		model:      model{},
+		config:     config,
+		configName: configName,
+	} 
+	m :=
+	m.config = config
+	m.connName = configName
+	return m
 }
 
-// 获取模型配置对象
-func (m *ConfigModel) Config() *Config{
-	return m.config
+// 获取自自定义配制信息
+func (m *model) Config() Config {
+	return *m.config
+}
+
+// 获取自定义配制名
+func (m *model) ConfigName() string {
+	return m.configName
+}
+
+// 获取主键字段名
+func (m *model) PkField() string{
+	return m.pkField
+}
+
+// 获取主键是否自增长
+func (m *model) AutoIncrement() bool {
+	return m.autoIncrement
+}
+
+// 获取唯一字段数组
+func (m *model) UniqueFields() []string {
+	return m.uniqueFields
+}
+
+// 获取数据库名
+func (m *model) DbName() string {
+	return m.dbName
+}
+
+// 获取数据库连接配制名
+func (m *model) ConnName() string {
+	return m.connName
 }
 
 // 获取数据库连接对象
-func (m *ConfigModel) DB() *gorm.DB {
+func (m *model) DB() *gorm.DB {
 	return m.db
 }
 
 // 设置查询条件
-func (m *ConfigModel) Where(query interface{}, args ...interface{}) *ConfigModel{
-	m.db.Where(query, args...)
+func (m *model) Where(query interface{}, args ...interface{}) *model{
+	m.db = m.db.Where(query, args...)
 	return m
 }
 
 // 设置外联
-func (m *ConfigModel) Joins(query string, args ...interface{}) *ConfigModel {
-	m.db.Joins(query, args...)
+func (m *model) Joins(query string, args ...interface{}) *model {
+	m.db = m.db.Joins(query, args...)
 	return m
 }
 
 // 设置分组
-func (m *ConfigModel) Group(query string) *ConfigModel {
-	m.db.Group(query)
+func (m *model) Group(query string) *model {
+	m.db = m.db.Group(query)
 	return m
 }
 
 // 设置having
-func (m *ConfigModel) Having(query interface{}, values ...interface{}) *ConfigModel {
-	m.db.Having(query, values...)
+func (m *model) Having(query interface{}, values ...interface{}) *model {
+	m.db = m.db.Having(query, values...)
 	return m
 }
 
 // 设置排序
-func (m *ConfigModel) Order(value interface{}) *ConfigModel {
-	m.db.Order(value)
+func (m *model) Order(value interface{}) *model {
+	m.db = m.db.Order(value)
 	return m
 }
 
+// 检查kv查询选项
+func (m *model) checkKvsSearchOption(so *KvsSearchOption) (rso *KvsSearchOption, err error){
+	rso = so
+	if rso == nil {
+		rso = &KvsSearchOption{KvName: "default"}
+	}
+	if rso.KvName == "" {
+		rso.KvName = "default"
+	}
+	if !InArray(rso.KvName, m.config.Kvs){
+		err = fmt.Errorf("配置中不存在 [%s] kv 项配置", rso.KvName)
+	}
+	return
+}
 
 // 获取Kv键值列表
-func (m *ConfigModel) GetKvs(so *KvsSearchOption) (result map[string]interface{}, err error){
+func (m *model) GetKvs(so *KvsSearchOption) (result []map[string]interface{}, err error){
 	if so, err = m.checkKvsSearchOption(so); err != nil{
 		return
 	}
-	//db := NewDBSession(m.db)
-	db := m.parseWhere(so.ExtraWhere, nil, true, false)
-	fields := m.parseKvFields(so.KvName, so.ExtraFields)
-	var data []map[string]interface{}
-	if db.Select(fields).Find(&data); errors.Is(db.Error, gorm.ErrRecordNotFound) {
-		err = db.Error
+	db := m.db
+	if so.DB != nil {
+		db = so.DB
 	}
-
-	result = map[string]interface{}{}
-	for _, v := range data {
-		key := v["_key"].(string)
-		//树形
-		if m.config.IsTree {
-			v["_level"] = len(v[m.config.TreePathField].(string)) / m.config.TreePathBit
-			if so.ReturnPath {
-				key = v[m.config.TreePathField].(string)
-			}
-		}
-		result[key] = v
+	db = m.parseConfigWhere(so.ExtraWhere, nil, true, false)
+	fields := m.parseConfigKvFields(so.KvName, so.ExtraFields)
+	var data []map[string]interface{}
+	if db = db.Select(fields).Find(&data); errors.Is(db.Error, gorm.ErrRecordNotFound) {
+		err = db.Error
 	}
 
 	return
 }
 
-// 分析查询条件 (此批条件只作用于返回的db对象上，不会作用于模型的db上)
+
+// 分析查询条件（仅对通过NewConfigModel创建的模型有效）
 // @param extraWhere 额外的查询条件
 // @param searchValues 查询字段值
 // @param notSearch 是否使用查询字段条件
 // @param notRowAuth 是否使用行级权限进行过滤
-func (m *ConfigModel) parseWhere(extraWhere interface{}, searchValues map[string]interface{}, notSearch bool, notRowAuth bool) *gorm.DB{
-	db := m.db.Where("")
+func (m *model) parseWhere(extraWhere interface{}, searchValues map[string]interface{}, notSearch bool, notRowAuth bool) (rdb *gorm.DB){
+	rdb = m.db
 	//额外的查询条件
 	if extraWhere != nil {
-		db.Where(extraWhere)
+		rdb = rdb.Where(extraWhere)
+	}
+
+	//如果不是自定义配置模型
+	if m.config == nil{
+		return
 	}
 
 	// 模型全局查询条件
-	if m.config.Where != "" {
-		db.Where(m.config.Where)
+	if m.config.BaseSearch.Where != "" {
+		rdb = rdb.Where(m.config.BaseSearch.Where)
 	}
 
 	// 模型各查询字段
@@ -160,19 +238,22 @@ func (m *ConfigModel) parseWhere(extraWhere interface{}, searchValues map[string
 					values = append(values, strings.ReplaceAll(v, "?", cast.ToString(searchValues[f.Name])))
 				}
 			}
-			db.Where(f.Where, values...)
+			rdb = rdb.Where(f.Where, values...)
 		}
 	}
+
+
 	if !notRowAuth {
 
 	}
-	return db
+	return
 }
+
 
 // 分析kv字段数组 （仅对通过NewConfigModel创建的模型有效）
 // @param 	kvName  kv配置项名
 // @return	fields	[]string		最终需要查询的KV字段名数组
-func (m *ConfigModel) parseKvFields(kvName string, extraFields []string) (fields []string){
+func (m *model) parseConfigKvFields(kvName string, extraFields []string) (fields []string){
 	fields = make([]string, 0)
 
 	// kv配置中的字段
@@ -180,63 +261,22 @@ func (m *ConfigModel) parseKvFields(kvName string, extraFields []string) (fields
 	if kv, ok = m.config.Kvs[kvName]; !ok{
 		return
 	}
-	keySep := fmt.Sprintf(",'%s',", kv.KeySep)
-	valueSep := fmt.Sprintf(",'%s',", kv.ValueSep)
-	keyField := fmt.Sprintf("CONCAT(%s) AS _key", strings.Join(m.fieldsAddAlias(kv.KeyFields), keySep))
-	ValueField := fmt.Sprintf("CONCAT(%s) AS _value", strings.Join(m.fieldsAddAlias(kv.ValueFields), valueSep))
+	keySep := fmt.Sprintf("'%s',%s.", kv.KeySep, m.config.BaseSearch.Alias)
+	valueSep := fmt.Sprintf("'%s',%s.", kv.ValueSep, m.config.BaseSearch.Alias)
+	keyField := fmt.Sprintf("CONCAT(%s.%s) AS _key", m.config.BaseSearch.Alias, strings.Join(kv.KeyFields, keySep))
+	ValueField := fmt.Sprintf("CONCAT(%s.%s) AS _value", m.config.BaseSearch.Alias, strings.Join(kv.ValueFields, valueSep))
 	fields = append(fields, keyField, ValueField)
 
 	// 树型必备字段
 	if m.config.IsTree {
-		fields = append(fields, m.fieldAddAlias(m.config.TreePathField), m.fieldAddAlias(m.config.TreeLevelField))
+		fields = append(fields, m.config.TreePathField, m.config.TreeLevelField)
 	}
 	// 附加字段
 	if extraFields != nil {
-		fields = append(fields, m.fieldsAddAlias(extraFields)...)
+		fields = append(fields, extraFields...)
 	}
 	return
 }
-
-// 给字段加表别名
-func (m *ConfigModel) fieldAddAlias(field string) string{
-	if field == "" { return "" }
-	if strings.Contains(field, ".") || strings.Contains(field,"(") {
-		return field
-	}else{
-		return fmt.Sprintf("`%s`.%s", m.config.Alias, strings.Trim(field, " "))
-	}
-}
-
-// 给字段数组加表别名
-func (m *ConfigModel) fieldsAddAlias(fields []string) []string{
-	newFields := make([]string, 0)
-	for _, v := range fields {
-		if v == "" { continue }
-		if strings.Contains(v, ".") || strings.Contains(v,"(") {
-			newFields = append(newFields, v)
-		} else {
-			newFields = append(newFields, fmt.Sprintf("`%s`.%s", m.config.Alias,  strings.Trim(v," ")))
-		}
-	}
-	return newFields
-}
-
-
-// 检查kv查询选项
-func (m *ConfigModel) checkKvsSearchOption(so *KvsSearchOption) (rso *KvsSearchOption, err error){
-	rso = so
-	if rso == nil {
-		rso = &KvsSearchOption{KvName: "default"}
-	}
-	if rso.KvName == "" {
-		rso.KvName = "default"
-	}
-	if !InArray(rso.KvName, m.config.Kvs){
-		err =  fmt.Errorf("配置中不存在 [%s] kv 项配置", so.KvName)
-	}
-	return
-}
-
 
 
 

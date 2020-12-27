@@ -37,7 +37,7 @@ func (c *Context) Init() {
 	//去除伪静态后缀
 	path := strings.Replace(strings.ToLower(c.Request.URL.Path), "." + option.UrlHtmlSuffix, "", -1)
 	//拆分请求路径
-	params := strings.Split(path, option.UrlPathSeparator)
+	params := strings.Split(path, option.UrlPathSep)
 	params = append(params, "", "", "", "")
 	c.Reqs = &Reqs{
 		Module:         params[1],

@@ -1,0 +1,173 @@
+package mc
+
+import (
+	"fmt"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+	"gorm.io/plugin/dbresolver"
+	"log"
+	"os"
+	"time"
+)
+
+//数据库连接配置map
+var dbConnConfigMap = map[string]DbConnConfig{}
+
+//数据库连接池
+var dbMap = map[string]*gorm.DB{}
+
+type DbConfig struct {
+	Salves				bool		`json:"salves"`
+	User         		string		`json:"user"`
+	Password     		string		`json:"password"`
+	Host         		string		`json:"host"`
+	Port         		int			`json:"port"`
+	DbName       		string		`json:"db_name"`
+	Charset      		string		`json:"charset"`
+}
+
+type DbConnConfig struct {
+	DbConfigs			[]DbConfig	`json:"db_configs"`
+	MaxOpenConns 		int			`json:"max_open_conns"`
+	MaxIdleConns 		int			`json:"max_idle_conns"`
+	ConnMaxLifetime		int64		`json:"conn_max_life_time"`
+	ConnMaxIdleTime		int64		`json:"conn_max_idle_time"`
+}
+
+//根据数据库配置名，获取数据库名称
+func GetDbNameByConfig(connName string) string {
+	dbConnConfig, ok := dbConnConfigMap[connName]
+	if !ok || dbConnConfig.DbConfigs==nil {
+		panic(fmt.Sprintf("数据库连接配置项不存在[%s]", connName))
+	}
+	return dbConnConfig.DbConfigs[0].DbName
+}
+
+//添加数据库连接配置
+func AppendDbConnConfig(connName string , dbConnConfig DbConnConfig){
+	dbConnConfigMap[connName] = dbConnConfig
+}
+
+//获取一个数据库连接对象
+func GetDB(connName string) *gorm.DB {
+	dbConnConfig, ok := dbConnConfigMap[connName]
+	if !ok {
+		panic(fmt.Sprintf("数据库连接配置项不存在[%s]", connName))
+	}
+	//判断连接Map中是否存在,存在则直接使用
+	if db, ok := dbMap[connName]; ok {
+		return db
+	}
+
+
+	newLogger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+		logger.Config{
+			SlowThreshold: 0,   // 慢 SQL 阈值
+			LogLevel:      logger.Info, // Log level
+			Colorful:      true,         // 禁用彩色打印
+		},
+	)
+
+	//v := dbConfig.Masters[0]
+	//dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=true&loc=Local",
+	//	v.User,
+	//	v.Password,
+	//	v.Host,
+	//	v.Port,
+	//	v.DbName,
+	//	v.Charset,
+	//)
+	//db , err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	//if err != nil {
+	//	panic(fmt.Sprintf("数据库连接失败(%s):%s", connName, err))
+	//}
+
+	//分析一个连接配置信息
+	masters := make([]gorm.Dialector, 0)
+	salves := make([]gorm.Dialector,0)
+	var defDialector gorm.Dialector
+	for _ , v := range dbConnConfig.DbConfigs {
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=true&loc=Local",
+			v.User, v.Password, v.Host, v.Port, v.DbName, v.Charset,
+		)
+		dialector := mysql.New(mysql.Config{DSN: dsn, DisableDatetimePrecision: true})
+		if !v.Salves && defDialector == nil{
+			defDialector = dialector
+			continue
+		}
+		if v.Salves {
+			salves = append(salves, dialector)
+		}else{
+			masters = append(masters, dialector)
+		}
+	}
+	if defDialector == nil {
+		panic(fmt.Sprintf("数据库连接未设置主库(%s)", connName))
+	}
+
+	// 初始化一个连接
+	db, err := gorm.Open(defDialector, &gorm.Config{Logger:newLogger})
+	if err != nil {
+		panic(fmt.Sprintf("数据库连接失败(%s):%s", connName, err))
+	}
+	// 设置主从
+	if err = db.Use(dbresolver.Register(dbresolver.Config{
+		Sources:  masters,
+		Replicas: salves,
+		Policy:   dbresolver.RandomPolicy{},
+	})); err != nil {
+		panic(fmt.Sprintf("数据库连接失败(%s):%s", connName, err))
+	}
+
+	// 设置连接选项
+	if sqlDB, err := db.DB(); err == nil && sqlDB != nil{
+		sqlDB.SetMaxIdleConns(dbConnConfig.MaxIdleConns)
+		sqlDB.SetMaxOpenConns(dbConnConfig.MaxOpenConns)
+		sqlDB.SetConnMaxLifetime(time.Minute * time.Duration(dbConnConfig.ConnMaxLifetime))
+		sqlDB.SetConnMaxIdleTime(time.Minute * time.Duration(dbConnConfig.ConnMaxIdleTime))
+	}else{
+		panic(fmt.Sprintf("数据库连接失败(%s):%s", connName, err))
+	}
+
+	var data []map[string]interface{}
+	db.Table("sys_role").Find(&data)
+	fmt.Println(data)
+
+
+
+	//if config.Config.Debug{
+	//	db.LogMode(true)
+	//}
+	dbMap[connName] = db
+	return dbMap[connName]
+}
+
+
+
+
+
+
+//type DbOption struct {
+//	DB				*gorm.DB
+//	ConnName 		string
+//	DbName			string
+//	Table			string
+//	Pk				string
+//	AutoIncrement 	bool
+//	UniqueFields	[]string
+//}
+//
+//func (do *DbOption) Set(connName string, dbName string, table string, pk string, autoIncrement bool, uniqueFields []string) {
+//
+//	do.ConnName = connName
+//	do.Table = table
+//	do.DB = GetDB(connName)
+//	if dbName == ""{
+//		dbName = GetDbNameByConfig(connName)
+//	}
+//	do.DbName = dbName
+//	do.AutoIncrement = autoIncrement
+//	do.UniqueFields = uniqueFields
+//}

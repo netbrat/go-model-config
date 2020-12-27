@@ -2,7 +2,7 @@ package mc
 
 import (
 	"fmt"
-	"github.com/jinzhu/gorm"
+	"github.com/go-gorm/gorm"
 )
 
 //数据库连接配置map

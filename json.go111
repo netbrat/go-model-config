@@ -11,17 +11,8 @@ import (
 	"strings"
 )
 
-//从json文件读数据到struct
-func JsonFileUnmarshal(file string, obj interface{}) error {
-	if jdData, err := ioutil.ReadFile(file); err != nil{
-		return err
-	}else{
-		jdData = bytes.TrimPrefix(jdData, []byte("\xef\xbb\xbf"))
-		return json.Unmarshal(jdData, obj)
-	}
-}
 //从json文件读数据到struct(有特殊处理)
-func McJsonFileUnmarshal(file string, obj interface{}) error {
+func JsonFileUnmarshal(file string, obj interface{}) error {
 	if jdData, err := ioutil.ReadFile(file); err != nil{
 		return err
 	}else{
@@ -30,12 +21,30 @@ func McJsonFileUnmarshal(file string, obj interface{}) error {
 		if err := json.Unmarshal(jdData, &data); err != nil{
 			return err
 		}
-		return reflectSetStruct(obj, data)
+		return reflectSetStruct(data, obj)
 	}
 }
 
+//从json字符串或[]byte读数据到struct(有特殊处理)
+func JsonUnmarshal(js interface{}, obj interface{}) error {
 
-func reflectSetStruct(obj interface{},data map[string]interface{}) (err error){
+	var jsData []byte
+	var data map[string]interface{}
+	switch reflect.TypeOf(js).Kind() {
+	case reflect.String:
+		jsData = []byte(js.(string))
+	case reflect.Array, reflect.Slice:
+	default:
+		return fmt.Errorf("原数据不是string 或 []byte类型")
+	}
+	if err := json.Unmarshal(jsData, &data); err != nil {
+		return err
+	}
+	return reflectSetStruct(data, obj)
+}
+
+
+func reflectSetStruct(data map[string]interface{}, obj interface{}) (err error){
 	t := reflect.TypeOf(obj).Elem()
 	v := reflect.ValueOf(obj).Elem()
 	sfName := ""
@@ -69,7 +78,6 @@ func reflectSetStruct(obj interface{},data map[string]interface{}) (err error){
 			}
 		}
 
-
 		if sf.Anonymous { // 匿名字段
 			value = data
 		}
@@ -100,9 +108,6 @@ func reflectSetValue(rt reflect.Type, rv reflect.Value, value interface{}, defVa
 	if rt.Kind() == reflect.Ptr {
 		isPtr = true
 		rt = rt.Elem()
-		//if value == nil && defValue != ""{
-		//	value = defValue
-		//}
 	}
 	switch rt.Kind() {
 	case reflect.Interface: //接口类型
@@ -159,7 +164,7 @@ func reflectSetValue(rt reflect.Type, rv reflect.Value, value interface{}, defVa
 		}
 	case reflect.Struct:
 		obj := reflect.New(rt)
-		if err = reflectSetStruct(obj.Interface(), value.(map[string]interface{})); err != nil{
+		if err = reflectSetStruct(value.(map[string]interface{}), obj.Interface()); err != nil{
 			return
 		}
 		if isPtr{
@@ -174,7 +179,7 @@ func reflectSetValue(rt reflect.Type, rv reflect.Value, value interface{}, defVa
 		for _, v := range arrayValue {
 			obj := reflect.New(rt.Elem())
 			if kind == reflect.Struct || kind == reflect.Map {
-				if err = reflectSetStruct(obj.Interface(), v.(map[string]interface{})); err != nil {
+				if err = reflectSetStruct(v.(map[string]interface{}), obj.Interface()); err != nil {
 					return
 				}
 			}else{
@@ -203,10 +208,10 @@ func reflectSetValue(rt reflect.Type, rv reflect.Value, value interface{}, defVa
 
 // 执行动态动态脚本, 或设置默认值
 func jsFunc(value interface{}) (v interface{}, err error){
+	v = value
 	if value == nil || reflect.TypeOf(value).Kind() != reflect.String {
 		return
 	}
-	v = value
 	vString := value.(string)
 	if len(vString) > 3 && strings.ToUpper(vString[:3]) == "JS:" {
 		script := fmt.Sprintf("function callfun(search,auth){%s}", string(vString[3:]))

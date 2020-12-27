@@ -1,11 +1,13 @@
 {
     "conn_name": "default",
-    "db_name": "JS:return search.a+auth.b;",
     "table": "sys_role",
-    "order_by": "id asc",
-    "pk_field": "",
-    "auto_increment": true,
-    "show_check": true,
+    "alias": "r",
+    "pk": "",
+    "auto_inc": true,
+    "jsons": ["sys_role"],
+    "groups": ["id"],
+    "orders": ["id asc"],
+    "show_checkbox": true,
     "fields": [
         {"name":"id", "title": "编码", "width": 0, "alias": "aaaaaaaa"},
         {"name":"name","title": "名称"},
@@ -18,14 +20,8 @@
     "enums": {
         "type": {"a": "abc"}
     },
-    "base_search": {
-        "where": "a=1",
-        "alias": "alias",
-        "join": "left join",
-        "group": "group by"
-    },
     "kvs": {
-        "default": {"key_fields": ["id","aa"], "value_fields": ["name"],"key_sep": "-","value_sep": ""}
+        "default": {"key_fields": ["id"], "value_fields": ["name","memo"],"key_sep": "-","value_sep": "-"}
     },
     "javascript": {
         "list_start": "lStart",
