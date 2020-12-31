@@ -6,10 +6,9 @@
     "auto_inc": true,
     "jsons": ["sys_role"],
     "groups": ["id"],
-    "orders": ["id asc"],
-    "show_checkbox": true,
+    "orders": ["sort asc"],
     "fields": [
-        {"name":"id", "title": "编码", "width": 0, "alias": "aaaaaaaa"},
+        {"name":"id", "title": "编码", "width": 0, "footer": "SUM(id)"},
         {"name":"name","title": "名称"},
         {"name":"memo","title": "备注", "type": "areatext", "sortable": false},
         {"name":"created_at","title": "创建时间"}

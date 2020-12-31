@@ -14,6 +14,7 @@ import (
 	"time"
 )
 
+
 func main(){
 
 	gin.SetMode("debug")
@@ -40,6 +41,14 @@ func main(){
 	}else{
 		fmt.Println(data)
 	}
+	if data, footer, total, err := m.Find(&mc.SearchOption{ExtraFields:[]string{"id"}}); err != nil {
+		panic(err)
+	}else{
+		fmt.Println(data)
+		fmt.Println(total)
+		fmt.Println(footer)
+	}
+
 
 
 	//if conf,err := mc.GetConfig("sys_role"); err!=nil{
@@ -96,7 +105,6 @@ func getDB() *gorm.DB{
 			Colorful:      true,         // 禁用彩色打印
 		},
 	)
-
 
 	dsn := "root:123456@tcp(127.0.0.1:3306)/mc_test?charset=utf8mb4&parseTime=true&loc=Local"
 	db, err := gorm.Open(

@@ -5,16 +5,29 @@ import (
 	"fmt"
 	"github.com/spf13/cast"
 	"gorm.io/gorm"
+	"reflect"
 	"strings"
 )
 
+//kvs查询选项
 type KvsSearchOption struct {
 	KvName		string			//kv配置项名
-	ExtraWhere	interface{}		//附加的查询条件
+	ExtraWhere	[]interface{}	//额外附加的查询条件
 	ReturnPath	bool			//当模型为树型结构时，返回的key是否使用path代替
 	NotRowAuth	bool			//是否不使用行级权限过滤条件
-	Indent		string			//当模型为树型结构时，层级缩进符, 空字符串时不缩进
 	ExtraFields	[]string		//额外附加的查询字段
+}
+
+//数据查询选项
+type SearchOption struct {
+	ExtraWhere 	[]interface{}			//附加的查询条件
+	SearchValue	map[string]interface{}	//查询项的值
+	ExtraFields	[]string				//额外附加的查询字段
+	Page		int						//查询页码
+	PageSize	int						//查询记录数
+	NotRowAuth	bool					//是否不使用行级权限过滤条件
+	NotTotal	bool					//是否不查询总记录数
+	NotSearch	bool					//是否不使用配置查询项进行查询
 }
 
 //模型结构体
@@ -23,15 +36,24 @@ type ConfigModel struct {
 	config  *Config
 }
 
-
 // 新建一个自定义配制模型
 // @param configName string 配制名
-func NewConfigModel(configName string) (*ConfigModel, error) {
-	//读取模型配置文件
-	config, err := GetFileConfig(configName)
-	if err != nil {
-		return nil, err
+func NewConfigModel(c interface{}) (m *ConfigModel, err error) {
+	var config *Config
+
+	if reflect.TypeOf(c).Kind() == reflect.Struct {
+		config = c.(*Config)
+		if err = config.ParseConfig(); err != nil {
+			return
+		}
+	}else {
+		//读取模型配置文件
+		config, err = GetConfig(c.(string))
+		if err != nil {
+			return nil, err
+		}
 	}
+	//创建一个连接
 	db, err := GetDB(config.ConnName)
 	if err != nil {
 		return nil, err
@@ -40,13 +62,13 @@ func NewConfigModel(configName string) (*ConfigModel, error) {
 	if config.DBName != "" {
 		tb = fmt.Sprintf("`%s`.%s", config.DBName, tb)
 	}
-	m := &ConfigModel{db: db, config: config}
+	m = &ConfigModel{db: db, config: config}
 	m.db.Table(tb)
 	m.db.Joins(strings.Join(config.Joins," "))
 	m.db.Group(strings.Join(m.fieldsAddAlias(config.Groups), ","))
 	m.db.Order(strings.Join(m.fieldsAddAlias(config.Orders), ","))
 
-	return m, nil
+	return
 }
 
 // 获取模型配置对象
@@ -59,76 +81,93 @@ func (m *ConfigModel) DB() *gorm.DB {
 	return m.db
 }
 
-// 设置查询条件
-func (m *ConfigModel) Where(query interface{}, args ...interface{}) *ConfigModel{
-	m.db.Where(query, args...)
-	return m
-}
-
-// 设置外联
-func (m *ConfigModel) Joins(query string, args ...interface{}) *ConfigModel {
-	m.db.Joins(query, args...)
-	return m
-}
-
-// 设置分组
-func (m *ConfigModel) Group(query string) *ConfigModel {
-	m.db.Group(query)
-	return m
-}
-
-// 设置having
-func (m *ConfigModel) Having(query interface{}, values ...interface{}) *ConfigModel {
-	m.db.Having(query, values...)
-	return m
-}
-
-// 设置排序
-func (m *ConfigModel) Order(value interface{}) *ConfigModel {
-	m.db.Order(value)
-	return m
-}
-
-
 // 获取Kv键值列表
 func (m *ConfigModel) GetKvs(so *KvsSearchOption) (result map[string]interface{}, err error){
-	if so, err = m.checkKvsSearchOption(so); err != nil{
+	//检查选项
+	if so == nil { so = &KvsSearchOption{KvName: "default"} }
+	if so.KvName == "" { so.KvName = "default" }
+	if !InArray(so.KvName, m.config.Kvs){
+		err =  fmt.Errorf("配置中不存在 [%s] kv 项配置", so.KvName)
 		return
 	}
-	//db := NewDBSession(m.db)
-	db := m.parseWhere(so.ExtraWhere, nil, true, false)
+
+	//分析kvs查询的字段
 	fields := m.parseKvFields(so.KvName, so.ExtraFields)
+	if fields == nil || len(fields) <= 0 {
+		return
+	}
+
+	//分析kvs查询条件
+	db := m.parseWhere(so.ExtraWhere, nil, true, so.NotRowAuth)
+
+	//查询
 	var data []map[string]interface{}
 	if db.Select(fields).Find(&data); errors.Is(db.Error, gorm.ErrRecordNotFound) {
 		err = db.Error
 	}
 
+	//处理结果
 	result = map[string]interface{}{}
 	for _, v := range data {
 		key := v["_key"].(string)
 		//树形
-		if m.config.IsTree {
-			v["_level"] = len(v[m.config.TreePathField].(string)) / m.config.TreePathBit
-			if so.ReturnPath {
-				key = v[m.config.TreePathField].(string)
-			}
+		if m.config.IsTree  && so.ReturnPath {
+			key = v[m.config.TreePathField].(string)
 		}
 		result[key] = v
 	}
-
 	return
 }
+
+
+// 获取数据列表
+func (m *ConfigModel) Find(so *SearchOption) (data []map[string]interface{},footer map[string]interface{}, total int64, err error){
+	if so == nil {
+		so = &SearchOption{}
+	}
+	//分析查询的字段
+	fields, footerFields := m.parseFields(so.ExtraFields)
+	if fields == nil || len(fields) <= 0 {
+		return
+	}
+	//分析查询条件
+	db := m.parseWhere(so.ExtraWhere, so.SearchValue, so.NotSearch, so.NotRowAuth)
+
+	//分页信息
+	offset, limit := GetOffsetLimit(so.Page, so.PageSize)
+
+	//查询
+	db.Offset(offset).Limit(limit)
+	db.Select(fields).Find(&data)
+	if !so.NotTotal { db.Count(&total) }
+	if errors.Is(db.Error, gorm.ErrRecordNotFound) {
+		err = db.Error
+		return
+	}
+	//汇总
+	if footerFields != nil && len(footerFields) > 0 {
+		footer = map[string]interface{}{}
+		db.Select(footerFields).Take(&footer)
+		if db.Error != nil {
+			err = db.Error
+			return
+		}
+	}
+	return
+}
+
+
 
 // 分析查询条件 (此批条件只作用于返回的db对象上，不会作用于模型的db上)
 // @param extraWhere 额外的查询条件
 // @param searchValues 查询字段值
 // @param notSearch 是否使用查询字段条件
 // @param notRowAuth 是否使用行级权限进行过滤
-func (m *ConfigModel) parseWhere(extraWhere interface{}, searchValues map[string]interface{}, notSearch bool, notRowAuth bool) *gorm.DB{
+func (m *ConfigModel) parseWhere(extraWhere []interface{}, searchValues map[string]interface{}, notSearch bool, notRowAuth bool) *gorm.DB{
 	db := m.db.Where("")
 	//额外的查询条件
 	if extraWhere != nil {
-		db.Where(extraWhere)
+		db.Where(extraWhere[0], extraWhere[1:]...)
 	}
 
 	// 模型全局查询条件
@@ -138,6 +177,9 @@ func (m *ConfigModel) parseWhere(extraWhere interface{}, searchValues map[string
 
 	// 模型各查询字段
 	if !notSearch{
+		if searchValues == nil{
+			searchValues = map[string]interface{}{}
+		}
 		for _, f := range m.config.SearchFields {
 			// 该查询字段未带条件配置，跳过
 			if f.Where == "" {
@@ -145,8 +187,9 @@ func (m *ConfigModel) parseWhere(extraWhere interface{}, searchValues map[string
 			}
 			// 未传入查询值时，使用默认值
 			if cast.ToString(searchValues[f.Name]) == "" {
-				if f.Default != nil {
-					delete(searchValues, f.Name)
+				if f.Default == nil {
+					continue
+					//delete(searchValues, f.Name)
 				} else {
 					searchValues[f.Name] = f.Default
 				}
@@ -169,26 +212,61 @@ func (m *ConfigModel) parseWhere(extraWhere interface{}, searchValues map[string
 	return db
 }
 
+//分析查询字段
+// @param	extraFields		额外附加的字段
+// @return	fields			最终需要查询的字段名数组
+// @return	footerFields	汇总字段
+func (m *ConfigModel) parseFields(extraFields []string)(fields []string,footerFields []string){
+	fields = make([]string, 0)
+	footerFields = make([]string, 0)
+	//扩展字段
+	fields = append(fields, m.fieldsAddAlias(extraFields)...)
+	// 树型必备字段
+	if m.config.IsTree {
+		treeLevelField := fmt.Sprintf("(LENGTH(%s)/%d) AS __level", m.fieldAddAlias(m.config.TreePathField), m.config.TreePathBit)
+		fields = append(fields, treeLevelField)
+	}
+	for _, f := range m.config.Fields {
+		if f.Name == "" || f.Hidden {continue}
+		//基础字段
+		field := ""
+		if f.Alias == ""{
+			field = m.fieldAddAlias(f.Name)
+		} else if f.Alias != "" {
+			field = fmt.Sprintf("%s AS %s", f.Alias, f.Name)
+		}
+		fields = append(fields, field)
+
+		//汇总字段
+		if f.Footer != "" {
+			footerFields = append(footerFields, fmt.Sprintf("%s AS %s", f.Footer, f.Name))
+		}
+	}
+	return
+}
+
 // 分析kv字段数组 （仅对通过NewConfigModel创建的模型有效）
-// @param 	kvName  kv配置项名
-// @return	fields	[]string		最终需要查询的KV字段名数组
+// @param 	kvName  		kv配置项名
+// @param	extraFields		额外附加的字段
+// @return	fields			最终需要查询的KV字段名数组
 func (m *ConfigModel) parseKvFields(kvName string, extraFields []string) (fields []string){
 	fields = make([]string, 0)
-
 	// kv配置中的字段
-	kv, ok := ConfKv{}, false
+	kv, ok := Kv{}, false
 	if kv, ok = m.config.Kvs[kvName]; !ok{
 		return
 	}
 	keySep := fmt.Sprintf(",'%s',", kv.KeySep)
 	valueSep := fmt.Sprintf(",'%s',", kv.ValueSep)
-	keyField := fmt.Sprintf("CONCAT(%s) AS _key", strings.Join(m.fieldsAddAlias(kv.KeyFields), keySep))
-	ValueField := fmt.Sprintf("CONCAT(%s) AS _value", strings.Join(m.fieldsAddAlias(kv.ValueFields), valueSep))
+	keyField := fmt.Sprintf("CONCAT(%s) AS __key", strings.Join(m.fieldsAddAlias(kv.KeyFields), keySep))
+	ValueField := fmt.Sprintf("CONCAT(%s) AS __value", strings.Join(m.fieldsAddAlias(kv.ValueFields), valueSep))
 	fields = append(fields, keyField, ValueField)
 
 	// 树型必备字段
 	if m.config.IsTree {
-		fields = append(fields, m.fieldAddAlias(m.config.TreePathField), m.fieldAddAlias(m.config.TreeLevelField))
+		treePathField := m.fieldAddAlias(m.config.TreePathField)
+		treeLevelField := fmt.Sprintf("(LENGTH(%s)/%d) AS __level", treePathField, m.config.TreePathBit)
+		fields = append(fields, treePathField, treeLevelField)
 	}
 	// 附加字段
 	if extraFields != nil {
@@ -222,189 +300,35 @@ func (m *ConfigModel) fieldsAddAlias(fields []string) []string{
 }
 
 
-// 检查kv查询选项
-func (m *ConfigModel) checkKvsSearchOption(so *KvsSearchOption) (rso *KvsSearchOption, err error){
-	rso = so
-	if rso == nil {
-		rso = &KvsSearchOption{KvName: "default"}
+func (m *ConfigModel) processData(data []map[string]interface{}, footer map[string]interface{}) error{
+	if data == nil || len(data) <= 0 { return}
+	for _, f := range m.config.Fields {
+		if _, ok := data[0][f.Name]; !ok {
+			continue
+		}
+		switch f.Type {
+		case FieldTypeEnum: //枚举
+			enums := m.config.Enums[f.From]
+			for i, _:= range data {
+				vString := data[i][f.Name].(string) //字段值
+				if f.Multiple{ //多选
+					vs := strings.Split(vString, f.Separator)
+					newVs := make([]string,0)
+					for _, v := range vs{
+						newVs = append(newVs, enums[v])
+					}
+					data[i]["__" + f.Name] = strings.Join(newVs, f.Separator)
+				}else{ //单选
+					data[i]["__"+ f.Name] = enums[vString]
+				}
+			}
+		case FieldTypeKv: //外联Kv
+			joinM, err := NewConfigModel(f.From)
+			if err != nil {
+				return err
+			}
+			kvs := joinM.GetKvs(nil)
+
+		}
 	}
-	if rso.KvName == "" {
-		rso.KvName = "default"
-	}
-	if !InArray(rso.KvName, m.config.Kvs){
-		err =  fmt.Errorf("配置中不存在 [%s] kv 项配置", so.KvName)
-	}
-	return
 }
-
-
-
-
-
-
-
-
-
-//
-
-
-//type SearchOption struct {
-//	Where			string					//查询条件
-//	WhereValue		[]interface{}			//查询值
-//	Fields			[]string				//查询字段
-//	Page			int						//查询页码
-//	PageSize 		int						//分页大小
-//	OrderBy			string					//排序
-//	Join			string					//外联
-//	Group			string					//分组
-//	Alias			string					//别名
-//	Having			string
-//	NotTotal		bool					//是否不查询总记录数
-//	NotRowAuth		bool					//是否不使用行级权限,默认为true
-//	SearchValues 	map[string]interface{}	//查询字段值
-//	IsSearch		bool					//是否使用查询字段进行查询
-//}
-//
-//func (so SearchOption) Offset() int{
-//	return (so.Page-1) * so.PageSize
-//}
-//
-//type BaseModel struct {
-//	DbOption 	*DbOption
-//}
-//
-////设置数据库操作选项
-//func (bm *BaseModel) SetDbOption(connName string, dbName string, table string, pk string, autoIncrement bool, uniqueFields []string){
-//	bm.DbOption = &DbOption{}
-//	bm.DbOption.Set(connName, dbName, table, pk, autoIncrement, uniqueFields)
-//}
-//
-////获取单条记录
-//func (bm *BaseModel) First(so SearchOption)(data map[string]interface{}, err error){
-//	err = bm.DbOption.DB.
-//		Table(bm.DbOption.Table).
-//		Order(so.OrderBy).
-//		Select(so.Fields).
-//		Where(so.Where,so.WhereValue...).
-//		Joins(so.Join).
-//		Having(so.Having).
-//		First(data).Error
-//	return
-//}
-//
-////获取记录集
-//func (bm *BaseModel) Find(so SearchOption)(data []map[string]interface{}, total int, err error){
-//	db := bm.DbOption.DB.
-//		Table(bm.DbOption.Table).
-//		Order(so.OrderBy).
-//		Select(so.Fields).
-//		Where(so.Where,so.WhereValue...).
-//		Joins(so.Join).
-//		Limit(so.PageSize).
-//		Offset(so.Offset()).
-//		Having(so.Having).
-//		Find(data)
-//	if err = db.Error; err != nil{
-//		return
-//	}
-//	if !so.NotTotal {
-//		err = db.Count(&total).Error
-//	}
-//	return
-//}
-//
-////判断记录是否存在
-//func (bm *BaseModel) IsExist(data map[string]interface{}) (exist bool, err error){
-//	where := ""
-//	whereValue := make([]interface{},0)
-//	db := bm.DbOption.DB.Table(bm.DbOption.Table)
-//	for _,v := range bm.DbOption.UniqueFields {
-//		if where == "" {
-//			where += fmt.Sprintf(" AND %s = ?", v)
-//		}else{
-//			where = fmt.Sprintf("%s = ?", v)
-//		}
-//		whereValue = append(whereValue, data[v])
-//	}
-//
-//	if !bm.DbOption.AutoIncrement{
-//		where = fmt.Sprintf("(%s) OR (%s = ?)", where, bm.DbOption.Pk)
-//		whereValue = append(whereValue, data[bm.DbOption.Pk])
-//	}
-//	total := 0
-//	db = db.Where(where, whereValue...).Count(&total)
-//	if total >0 {
-//		exist = true
-//	}
-//	return exist, db.Error
-//}
-//
-////更新记录
-//func (bm *BaseModel) Update(data map[string]interface{}, id interface{})(total int64, err error){
-//	exist := false
-//	if exist, err = bm.IsExist(data); err != nil{
-//		return
-//	}else if exist {
-//		err = fmt.Errorf("记录已存在")
-//		return
-//	}
-//	where := fmt.Sprintf("%s = ?", bm.DbOption.Pk)
-//	db := bm.DbOption.DB.Table(bm.DbOption.Table).Where(where, id).Update(data)
-//	return db.RowsAffected, db.Error
-//}
-//
-////创建记录
-//func (bm *BaseModel) Create(data map[string]interface{})(total int64, err error){
-//	exist := false
-//	if exist, err = bm.IsExist(data); err != nil{
-//		return
-//	}else if exist {
-//		err = fmt.Errorf("记录已存在")
-//		return
-//	}
-//	db := bm.DbOption.DB.Table(bm.DbOption.Table).Create(data)
-//	return db.RowsAffected, db.Error
-//}
-//
-////保存记录（根据pk自动分析是update 或 create）
-//func (bm *BaseModel) Save(data map[string]interface{})(total int64, err error){
-//	pk := ""
-//	where := map[string]interface{}{}
-//	if bm.DbOption.AutoIncrement { //pk自增表
-//		pk = bm.DbOption.Pk
-//	}else{
-//		pk = "__" + bm.DbOption.Pk
-//		where[bm.DbOption.Pk] = data[pk]
-//	}
-//	if data[pk] == nil{ //创建
-//		return bm.Create(data)
-//	}else { //更新
-//		return bm.Update(data, data[pk])
-//	}
-//}
-//
-////根据PK字段删除记录
-//func (bm *BaseModel) Delete(id interface{}) (total int64, err error){
-//	var delIds interface{}
-//	kind := reflect.TypeOf(id).Kind()
-//	if kind != reflect.Array && kind != reflect.Slice {
-//		delIds = []interface{}{ id }
-//	}else{
-//		delIds = id
-//	}
-//	db := bm.DbOption.DB.Table(bm.DbOption.Table).Delete("%s IN ?", bm.DbOption.Pk, delIds)
-//	return db.RowsAffected, db.Error
-//}
-//
-//// @title parseWhere
-//// @description 分析查询条件
-//// @param	db		*gorm.DB
-//// @param 	so 		SearchOption	模型查询字段各项的值
-//// @return	rdb		*gorm.DB		附带最终的查询条件的db对象
-//func (bm *BaseModel) parseWhere(db *gorm.DB, so SearchOption) (rdb *gorm.DB) {
-//	rdb = db
-//	if so.Where != "" {
-//		rdb = rdb.Where(so.Where, so.WhereValue...)
-//	}
-//	return
-//}
