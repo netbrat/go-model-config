@@ -6,7 +6,7 @@
     "auto_inc": true,
     "jsons": ["sys_role"],
     "groups": ["id"],
-    "orders": ["sort asc"],
+    "orders": "sort asc",
     "fields": [
         {"name":"id", "title": "编码", "width": 0, "footer": "SUM(id)"},
         {"name":"name","title": "名称"},
@@ -17,7 +17,7 @@
         {"name":"id","title": "角色", "where": "id=? or name like ?", "values" : ["?","'%?%'"], "info": "请输入角色编码或名称"}
     ],
     "enums": {
-        "type": {"a": "abc"}
+        "id": {"1": "abc"}
     },
     "kvs": {
         "default": {"key_fields": ["id"], "value_fields": ["name","memo"],"key_sep": "-","value_sep": "-"}

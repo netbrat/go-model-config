@@ -5,9 +5,9 @@ import (
 	"gorm.io/gorm"
 )
 
-
 //数据库连接池
 var dbMap = map[string]*gorm.DB{}
+
 
 // 添加一个数据库连接对象
 func AppendDB(connName string, db *gorm.DB) (err error) {
@@ -29,7 +29,3 @@ func GetDB(connName string) (db *gorm.DB, err error){
 	}
 	return
 }
-
-
-
-

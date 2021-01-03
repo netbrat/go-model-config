@@ -25,7 +25,7 @@ func HandlerAdapt(c *gin.Context) {
 	ctx.Init()
 	//判断是否需要登录验证
 	actionString := fmt.Sprintf("%s.%s.%s", ctx.Reqs.Model, ctx.Reqs.Controller, ctx.Reqs.Action)
-	if !InArray(actionString, option.RouterMap.NotAuthActions) {
+	if !inArray(actionString, option.RouterMap.NotAuthActions) {
 		//验证是否登录
 	}
 

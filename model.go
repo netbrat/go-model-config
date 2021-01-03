@@ -1,334 +1,246 @@
 package mc
 
 import (
-	"errors"
 	"fmt"
+	"github.com/netbrat/djson"
 	"github.com/spf13/cast"
 	"gorm.io/gorm"
-	"reflect"
 	"strings"
 )
 
-//kvs查询选项
-type KvsSearchOption struct {
-	KvName		string			//kv配置项名
-	ExtraWhere	[]interface{}	//额外附加的查询条件
-	ReturnPath	bool			//当模型为树型结构时，返回的key是否使用path代替
-	NotRowAuth	bool			//是否不使用行级权限过滤条件
-	ExtraFields	[]string		//额外附加的查询字段
+// 模型字段类型
+const (
+	ModelFieldTypeText 			= "text"		//单行文本（默认）
+	ModelFieldTypeAreaText 		= "areatext"	//多行文本
+	ModelFieldTypeEnum			= "enum"		//枚举(指定from)
+	ModelFieldTypeKv			= "kv"			//外链表Kv对(指定from)
+	ModelFieldTypeDate			= "date"		//日期
+	ModelFieldTypeDatetime		= "datetime"	//日期时间
+)
+var fieldTypes []string = []string {ModelFieldTypeText, ModelFieldTypeAreaText, ModelFieldTypeEnum, ModelFieldTypeKv, ModelFieldTypeDate, ModelFieldTypeDatetime}
+
+//字段基础配置对象
+type ModelBaseField struct {
+	Name        string      `json:"name"`                        //字段名 (必填）
+	Title       string      `json:"title"`                       //标题 (默认为name值）
+	Type        string      `json:"type" default:"text"`         //字段类型(text:单行文本（默认） | areatext:多行文本 | enum:枚举(指定from) | outjoin:外链表(指定from)|date:日期, datetime:日期时间),如果此字段对应的表格是行权限范围表，则必须使用outjoin
+	Info        string      `json:"info"`                        //字段说明（默认""）
+	From        string      `json:"from"`                        //指定字段数据来源,当type为enum或outjoin时有效且必填,当为outjoin时填写模型配制ID
+	Multiple    bool        `json:"multiple"`                    //是否支持多选（默认false）
+	Separator   string      `json:"separator" default:","`       //多选时选项的分隔符，尽量使用默认值逗号，因为mysql的MATCH AGAINST只使用逗号分隔，除非你的业务中不使用些语句（默认逗号,)
+	Default     interface{} `json:"default"`                     //默认值（默认""）
+	Width       int         `json:"width" default:"120"`         //显示宽度（默认120）
+	Height      int         `json:"height" default:"60"`         //多行时的行数，仅当text='areatext'有效 （默认60）
+	SelNullText string      `json:"sel_null_text" default:"请选择"` //下拉型默认未选情况下显示的空值文本,当"NO"时不显示，当为""时显示“请选择",默认（"")
+	ReturnPath  bool        `json:"return_path"`                 //下拉列表返回路径，而不是KEY，仅针对树型outjoin类型有效 默认 false
 }
 
-//数据查询选项
-type SearchOption struct {
-	ExtraWhere 	[]interface{}			//附加的查询条件
-	SearchValue	map[string]interface{}	//查询项的值
-	ExtraFields	[]string				//额外附加的查询字段
-	Page		int						//查询页码
-	PageSize	int						//查询记录数
-	NotRowAuth	bool					//是否不使用行级权限过滤条件
-	NotTotal	bool					//是否不查询总记录数
-	NotSearch	bool					//是否不使用配置查询项进行查询
+//字段配置对象
+type ModelField struct {
+	ModelBaseField
+	Editable      *bool  `json:"editable" default:"true"` //是否可编辑（默认true)
+	Alias         string `json:"alias"`                   //别名，与SQL中刚好相反，如SQL中：SUM(money) AS total，则此处填写sum(abc)，total为Column单项的key（默认为""）
+	Footer        string `json:"footer"`                  //此字段表尾汇总SQL，如SUM(money)，为""，则此字段不汇总
+	Filter        *bool  `json:"filter" default:"true"`   //数据保存时是否对内容进行安全过虑(默认true)
+	Hidden        bool   `json:"hidden"`                  //是否在列表中隐藏，此列即可单独设置，也会根据权限系统自动进行设置 默认false
+	Func          string `json:"func"`                    //值显示的回调
+	Align         string `json:"align" default:"left"`    //列表时对齐方式
+	Sortable      *bool  `json:"sortable" default:"true"` //列表时是否允许排序（默认true)
+	EditHideValue bool   `json:"edit_hide_value"`         //编辑时是否不允许显示原值（默认false)
+	Require       bool   `json:"require"`                 //必填字段(默认false)
+}
+
+//查询字段配置对象
+type ModelSearchField struct {
+	ModelBaseField
+	Where  string   `json:"where"`  //查询时的条件，表单传过来的值会替换此条件{{this}}字符串，如果是多选，则使用{{inThis}}
+	Values []string `json:"values"` //查询时的条件值，默认直接[]
+	Br     bool     `json:"br"`     //表单换行显示
+}
+
+//键值对配置对象
+type ModelKv struct {
+	KeyFields   []string `json:"key_fields"`   // 主键（必填）
+	ValueFields []string `json:"value_fields"` // 值字段列表 (必填）
+	KeySep      string   `json:"value_sep"`    // 多关键字段分隔符（默认_)
+	ValueSep    string   `json:"value_sep"`    // 多值字段分隔符（默认_）
+	Where       string   `json:"where"`        //查询条件（只作用此kv选择中)
+}
+
+//回调js配置对象
+type ModelJavascript struct {
+	ListStart string `json:"list_start"` //显示列表开始时回调
+	ListEnd   string `json:"list_end"`   //显示列表结果时回调
+	EditStart string `json:"edit_start"` //编辑弹窗显示回调
+	EditEnd   string `json:"edit_end"`   //编辑提交时回调
+}
+
+//模型配制属性
+type ModelAttr struct {
+	Name          string                            `json:"-"`
+	ConnName      string                            `json:"conn_name" default:"default"`    //数据库连接名			默认 default
+	DBName        string                            `json:"db_name"`                        //数据库名				默认 数据库连接配置中的数据库名
+	Table         string                            `json:"table"`                          //数据表名				必填
+	Alias         string                            `json:"alias"`                          //表别名 					默认 表名
+	Orders        string                          	`json:"orders"`                         //默认排序				选填
+	Pk            string                            `json:"pk" default:"id"`                //主键字段名				默认 id
+	AutoInc       *bool                             `json:"auto_inc" default:"true"`        //主键是否自增长			默认 true
+	UniqueFields  []string                          `json:"unique_fields"`                  //唯一性字段列表			选填
+	Where         string                            `json:"where"`                          //基础查询条件 			默认""
+	Joins         []string                          `json:"joins"`                          //外联SQL
+	Groups        []string                          `json:"groups"`                         //分组SQL
+	IsTree        bool                              `json:"is_tree"`                        //是否树型结构表			默认 false
+	TreePathBit   int                               `json:"tree_path_bit" default:"2"`      //树型结构路径每层位数		默认 2
+	TreePathField string                            `json:"tree_path_field" default:"path"` //树型结构的路径字段		默认 path
+	HideCheckbox  bool                              `json:"hide_checkbox" default:"false"`  //列表是否不显示多选框 	默认 false
+	Fields        []ModelField                      `json:"fields"`                         //字段列表
+	SearchFields  []ModelSearchField                `json:"search_fields"`                  //查询字段列表
+	Enums         map[string]map[string]string 		`json:"enums"`                          //枚举列表
+	Kvs           map[string]ModelKv                `json:"kvs"`                            //键值对配置结构
+	JavaScript    ModelJavascript                   `json:"javascript"`                     //回调js
+	//FieldIndexes       map[string]int               `json:"-"`                              //字段索引				填写项
+	//SearchFieldIndexes map[string]int               `json:"-"`                              //查询字段索引			非填写项
 }
 
 //模型结构体
-type ConfigModel struct {
-	db		*gorm.DB
-	config  *Config
+type Model struct {
+	db   *gorm.DB
+	attr *ModelAttr
 }
+
 
 // 新建一个自定义配制模型
-// @param configName string 配制名
-func NewConfigModel(c interface{}) (m *ConfigModel, err error) {
-	var config *Config
-
-	if reflect.TypeOf(c).Kind() == reflect.Struct {
-		config = c.(*Config)
-		if err = config.ParseConfig(); err != nil {
-			return
+// @param c  配制名|配制对象
+func NewModel(config string) (m *Model) {
+	attr := &ModelAttr{}
+	if strings.Contains(config, "{") {
+		if err := djson.Unmarshal(config, attr, nil); err != nil{
+			panic(fmt.Errorf(fmt.Sprintf("解析模型配置出错：%s", err.Error())))
 		}
-	}else {
-		//读取模型配置文件
-		config, err = GetConfig(c.(string))
-		if err != nil {
-			return nil, err
+	} else {
+		file := fmt.Sprintf("%s%s.json",option.ConfigsFilePath, config)
+		if err := djson.FileUnmarshal(file, attr, nil); err != nil {
+			panic(fmt.Errorf(fmt.Sprintf("读取模型配置[%s]信息出错：%s", config, err.Error())))
 		}
+		attr.Name = config
 	}
-	//创建一个连接
-	db, err := GetDB(config.ConnName)
-	if err != nil {
-		return nil, err
-	}
-	tb := fmt.Sprintf("%s AS %s", config.Table, config.Alias)
-	if config.DBName != "" {
-		tb = fmt.Sprintf("`%s`.%s", config.DBName, tb)
-	}
-	m = &ConfigModel{db: db, config: config}
-	m.db.Table(tb)
-	m.db.Joins(strings.Join(config.Joins," "))
-	m.db.Group(strings.Join(m.fieldsAddAlias(config.Groups), ","))
-	m.db.Order(strings.Join(m.fieldsAddAlias(config.Orders), ","))
-
-	return
+	m = &Model{}
+	return m.SetAttr(attr)
 }
 
-// 获取模型配置对象
-func (m *ConfigModel) Config() *Config{
-	return m.config
-}
-
-// 获取数据库连接对象
-func (m *ConfigModel) DB() *gorm.DB {
+// 获取模型数据库连接对象本身
+func (m *Model) DB() *gorm.DB{
 	return m.db
 }
 
-// 获取Kv键值列表
-func (m *ConfigModel) GetKvs(so *KvsSearchOption) (result map[string]interface{}, err error){
-	//检查选项
-	if so == nil { so = &KvsSearchOption{KvName: "default"} }
-	if so.KvName == "" { so.KvName = "default" }
-	if !InArray(so.KvName, m.config.Kvs){
-		err =  fmt.Errorf("配置中不存在 [%s] kv 项配置", so.KvName)
-		return
-	}
-
-	//分析kvs查询的字段
-	fields := m.parseKvFields(so.KvName, so.ExtraFields)
-	if fields == nil || len(fields) <= 0 {
-		return
-	}
-
-	//分析kvs查询条件
-	db := m.parseWhere(so.ExtraWhere, nil, true, so.NotRowAuth)
-
-	//查询
-	var data []map[string]interface{}
-	if db.Select(fields).Find(&data); errors.Is(db.Error, gorm.ErrRecordNotFound) {
-		err = db.Error
-	}
-
-	//处理结果
-	result = map[string]interface{}{}
-	for _, v := range data {
-		key := v["_key"].(string)
-		//树形
-		if m.config.IsTree  && so.ReturnPath {
-			key = v[m.config.TreePathField].(string)
-		}
-		result[key] = v
-	}
-	return
+// 获取一个新的模型数据库连接对象
+func (m *Model) NewDB() *gorm.DB {
+	return m.db.Where("")
 }
 
-
-// 获取数据列表
-func (m *ConfigModel) Find(so *SearchOption) (data []map[string]interface{},footer map[string]interface{}, total int64, err error){
-	if so == nil {
-		so = &SearchOption{}
+// 获取一个仅包含连接名及表名的连接对象
+func (m *Model) BaseDB() *gorm.DB {
+	db, err := GetDB(m.attr.ConnName)
+	if err != nil {
+		panic(err)
 	}
-	//分析查询的字段
-	fields, footerFields := m.parseFields(so.ExtraFields)
-	if fields == nil || len(fields) <= 0 {
-		return
+	tb := fmt.Sprintf("%s AS %s", m.attr.Table, m.attr.Alias)
+	if m.attr.DBName != "" {
+		tb = fmt.Sprintf("`%s`.%s", m.attr.DBName, tb)
 	}
-	//分析查询条件
-	db := m.parseWhere(so.ExtraWhere, so.SearchValue, so.NotSearch, so.NotRowAuth)
-
-	//分页信息
-	offset, limit := GetOffsetLimit(so.Page, so.PageSize)
-
-	//查询
-	db.Offset(offset).Limit(limit)
-	db.Select(fields).Find(&data)
-	if !so.NotTotal { db.Count(&total) }
-	if errors.Is(db.Error, gorm.ErrRecordNotFound) {
-		err = db.Error
-		return
-	}
-	//汇总
-	if footerFields != nil && len(footerFields) > 0 {
-		footer = map[string]interface{}{}
-		db.Select(footerFields).Take(&footer)
-		if db.Error != nil {
-			err = db.Error
-			return
-		}
-	}
-	return
-}
-
-
-
-// 分析查询条件 (此批条件只作用于返回的db对象上，不会作用于模型的db上)
-// @param extraWhere 额外的查询条件
-// @param searchValues 查询字段值
-// @param notSearch 是否使用查询字段条件
-// @param notRowAuth 是否使用行级权限进行过滤
-func (m *ConfigModel) parseWhere(extraWhere []interface{}, searchValues map[string]interface{}, notSearch bool, notRowAuth bool) *gorm.DB{
-	db := m.db.Where("")
-	//额外的查询条件
-	if extraWhere != nil {
-		db.Where(extraWhere[0], extraWhere[1:]...)
-	}
-
-	// 模型全局查询条件
-	if m.config.Where != "" {
-		db.Where(m.config.Where)
-	}
-
-	// 模型各查询字段
-	if !notSearch{
-		if searchValues == nil{
-			searchValues = map[string]interface{}{}
-		}
-		for _, f := range m.config.SearchFields {
-			// 该查询字段未带条件配置，跳过
-			if f.Where == "" {
-				continue
-			}
-			// 未传入查询值时，使用默认值
-			if cast.ToString(searchValues[f.Name]) == "" {
-				if f.Default == nil {
-					continue
-					//delete(searchValues, f.Name)
-				} else {
-					searchValues[f.Name] = f.Default
-				}
-			}
-			// 查询值与查询条件匹配
-			values := make([]interface{}, 0)
-			for _, v := range f.Values {
-				if v == "?" {
-					values = append(values, searchValues[f.Name])
-				} else {
-					values = append(values, strings.ReplaceAll(v, "?", cast.ToString(searchValues[f.Name])))
-				}
-			}
-			db.Where(f.Where, values...)
-		}
-	}
-	if !notRowAuth {
-
-	}
+	db.Table(tb)
 	return db
 }
 
-//分析查询字段
-// @param	extraFields		额外附加的字段
-// @return	fields			最终需要查询的字段名数组
-// @return	footerFields	汇总字段
-func (m *ConfigModel) parseFields(extraFields []string)(fields []string,footerFields []string){
-	fields = make([]string, 0)
-	footerFields = make([]string, 0)
-	//扩展字段
-	fields = append(fields, m.fieldsAddAlias(extraFields)...)
-	// 树型必备字段
-	if m.config.IsTree {
-		treeLevelField := fmt.Sprintf("(LENGTH(%s)/%d) AS __level", m.fieldAddAlias(m.config.TreePathField), m.config.TreePathBit)
-		fields = append(fields, treeLevelField)
-	}
-	for _, f := range m.config.Fields {
-		if f.Name == "" || f.Hidden {continue}
-		//基础字段
-		field := ""
-		if f.Alias == ""{
-			field = m.fieldAddAlias(f.Name)
-		} else if f.Alias != "" {
-			field = fmt.Sprintf("%s AS %s", f.Alias, f.Name)
-		}
-		fields = append(fields, field)
+func (m *Model) Attr() *ModelAttr {
+	return m.attr
+}
 
-		//汇总字段
-		if f.Footer != "" {
-			footerFields = append(footerFields, fmt.Sprintf("%s AS %s", f.Footer, f.Name))
+func (m *Model) SetAttr(attr *ModelAttr) *Model{
+	attr.parse()
+	m.attr = attr
+
+	//创建一个连接并附加模型基础条件信息
+	m.db = m.BaseDB()
+	if m.attr.Where != "" {
+		m.db.Where(attr.Where)
+	}
+	if m.attr.Joins != nil || len(m.attr.Joins) > 0 {
+		m.db.Joins(strings.Join(attr.Joins, " "))
+	}
+	if m.attr.Groups != nil || len(m.attr.Groups) > 0 {
+		m.db.Group(strings.Join(m.fieldsAddAlias(attr.Groups), ","))
+	}
+	//m.db.Order(strings.Join(m.fieldsAddAlias(attr.Orders), ","))
+	return m
+}
+
+// 分析配置信息
+func (attr *ModelAttr) parse() {
+	if attr.ConnName == "" { attr.ConnName = "default"} //如果没有指定数据连接，则使用默认
+	if attr.Table == "" { attr.Table = attr.Name } //如果没有指定表名，使用模型配制名称
+	if attr.Alias == "" { attr.Alias = attr.Table } //如果表没指定别名，就直接使用表名作别名
+	if attr.Pk == "" {attr.Pk = "id"} //没有指定主键，则使用默认id
+	if attr.AutoInc == nil { *attr.AutoInc = true} // 没有指定是否自增，使用默认true
+	if attr.IsTree{
+		if attr.TreePathBit <= 0 { attr.TreePathBit = 2} //没有指定树型路径分隔位数，使用默认2
+		if attr.TreePathField == "" { attr.TreePathField = "path"} //没有指定树型路径字段，使用默认path
+	}
+	// 分析列表字段的基础字段信息
+	//attr.FieldIndexes = map[string]int{}
+	for i,_ := range attr.Fields {
+		f := &attr.Fields[i]
+		//attr.FieldIndexes[f.Name] = i
+		attr.parseBaseField(&f.ModelBaseField)
+		if attr.Fields[i].Editable == nil { *attr.Fields[i].Editable = true}
+		if attr.Fields[i].Filter == nil { *attr.Fields[i].Filter = true}
+		if attr.Fields[i].Sortable == nil { *attr.Fields[i].Sortable = true}
+	}
+	// 分析查询字段的基础字段信息
+	//attr.SearchFieldIndexes = map[string]int{}
+	for i, _ := range attr.SearchFields {
+		sf := &attr.SearchFields[i]
+		//attr.SearchFieldIndexes[sf.Name] = i
+		attr.parseBaseField(&sf.ModelBaseField)
+		if sf.Values == nil {
+			sf.Values = []string { "?" }
 		}
+	}
+}
+
+// 分析基础字段信息
+func (attr *ModelAttr) parseBaseField(field *ModelBaseField){
+	// 如果字段没有指定标题，使用字段名
+	if field.Title == "" { field.Title = field.Name}
+	// 如果指定的字段类型不符，使用默认的text类型
+	field.Type = strings.ToLower(field.Type)
+	if !inArray(field.Type, fieldTypes) {
+		field.Type = ModelFieldTypeText
+	}
+	// 对from设置值进行分析
+	if field.Type == ModelFieldTypeKv {
+		if field.From[:1] == ":" {
+			field.From = fmt.Sprintf("%s%s",attr.Name, field.From)
+		} else if !strings.Contains(field.From,":"){
+			field.From = fmt.Sprintf("%s:%s",field.From, "default")
+		}
+	} else if field.Type == ModelFieldTypeEnum {
+		if field.From == "" { field.From = field.Name}
+	}
+}
+
+func (attr *ModelAttr) getEnum (from string, fType string) (enum map[string]string){
+
+	if fType == ModelFieldTypeKv {
+		f := strings.Split(from, ":")
+		m := NewModel(f[0])
+		kvs, _ := m.FindKvs(&KvsQueryOption{KvName:f[1]})
+		enum = map[string]string{}
+		for i, v := range kvs{
+			enum[i] = cast.ToString(v["__value"])
+		}
+	}else if fType == ModelFieldTypeEnum {
+		enum = attr.Enums[from]
 	}
 	return
-}
-
-// 分析kv字段数组 （仅对通过NewConfigModel创建的模型有效）
-// @param 	kvName  		kv配置项名
-// @param	extraFields		额外附加的字段
-// @return	fields			最终需要查询的KV字段名数组
-func (m *ConfigModel) parseKvFields(kvName string, extraFields []string) (fields []string){
-	fields = make([]string, 0)
-	// kv配置中的字段
-	kv, ok := Kv{}, false
-	if kv, ok = m.config.Kvs[kvName]; !ok{
-		return
-	}
-	keySep := fmt.Sprintf(",'%s',", kv.KeySep)
-	valueSep := fmt.Sprintf(",'%s',", kv.ValueSep)
-	keyField := fmt.Sprintf("CONCAT(%s) AS __key", strings.Join(m.fieldsAddAlias(kv.KeyFields), keySep))
-	ValueField := fmt.Sprintf("CONCAT(%s) AS __value", strings.Join(m.fieldsAddAlias(kv.ValueFields), valueSep))
-	fields = append(fields, keyField, ValueField)
-
-	// 树型必备字段
-	if m.config.IsTree {
-		treePathField := m.fieldAddAlias(m.config.TreePathField)
-		treeLevelField := fmt.Sprintf("(LENGTH(%s)/%d) AS __level", treePathField, m.config.TreePathBit)
-		fields = append(fields, treePathField, treeLevelField)
-	}
-	// 附加字段
-	if extraFields != nil {
-		fields = append(fields, m.fieldsAddAlias(extraFields)...)
-	}
-	return
-}
-
-// 给字段加表别名
-func (m *ConfigModel) fieldAddAlias(field string) string{
-	if field == "" { return "" }
-	if strings.Contains(field, ".") || strings.Contains(field,"(") {
-		return field
-	}else{
-		return fmt.Sprintf("`%s`.%s", m.config.Alias, strings.Trim(field, " "))
-	}
-}
-
-// 给字段数组加表别名
-func (m *ConfigModel) fieldsAddAlias(fields []string) []string{
-	newFields := make([]string, 0)
-	for _, v := range fields {
-		if v == "" { continue }
-		if strings.Contains(v, ".") || strings.Contains(v,"(") {
-			newFields = append(newFields, v)
-		} else {
-			newFields = append(newFields, fmt.Sprintf("`%s`.%s", m.config.Alias,  strings.Trim(v," ")))
-		}
-	}
-	return newFields
-}
-
-
-func (m *ConfigModel) processData(data []map[string]interface{}, footer map[string]interface{}) error{
-	if data == nil || len(data) <= 0 { return}
-	for _, f := range m.config.Fields {
-		if _, ok := data[0][f.Name]; !ok {
-			continue
-		}
-		switch f.Type {
-		case FieldTypeEnum: //枚举
-			enums := m.config.Enums[f.From]
-			for i, _:= range data {
-				vString := data[i][f.Name].(string) //字段值
-				if f.Multiple{ //多选
-					vs := strings.Split(vString, f.Separator)
-					newVs := make([]string,0)
-					for _, v := range vs{
-						newVs = append(newVs, enums[v])
-					}
-					data[i]["__" + f.Name] = strings.Join(newVs, f.Separator)
-				}else{ //单选
-					data[i]["__"+ f.Name] = enums[vString]
-				}
-			}
-		case FieldTypeKv: //外联Kv
-			joinM, err := NewConfigModel(f.From)
-			if err != nil {
-				return err
-			}
-			kvs := joinM.GetKvs(nil)
-
-		}
-	}
 }

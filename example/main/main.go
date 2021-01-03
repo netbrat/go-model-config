@@ -15,6 +15,8 @@ import (
 )
 
 
+
+
 func main(){
 
 	gin.SetMode("debug")
@@ -32,16 +34,14 @@ func main(){
 
 
 
-	m, err:= mc.NewConfigModel("sys_role")
-	if err != nil{
-		panic(err)
-	}
-	if data, err := m.GetKvs(&mc.KvsSearchOption{ExtraFields:[]string{"memo"}}); err != nil{
+	m := mc.NewModel("sys_role")
+	if data, err := m.FindKvs(&mc.KvsQueryOption{ExtraFields:[]string{"memo"}}); err != nil{
 		panic(err)
 	}else{
 		fmt.Println(data)
 	}
-	if data, footer, total, err := m.Find(&mc.SearchOption{ExtraFields:[]string{"id"}}); err != nil {
+	if data, footer, total, err := m.Find(nil); err != nil {
+	//if data, exist, err := m.Take(nil); err != nil {
 		panic(err)
 	}else{
 		fmt.Println(data)
