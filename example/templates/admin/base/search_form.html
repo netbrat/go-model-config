@@ -2,9 +2,14 @@
 
 <form class="layui-form admin-search-form" id="search_form">
     <ul class="layui-form-item">
-        {{ .searchFormHtml }}
+        {{ range $key, $item := .Model.SearchItems}}
         <li class="layui-inline">
-            <div class="layui-btn layui-btn-sm" admin-href="alert('ok1');" link-type="1">查询</div>
+            <label class="layui-form-label">{{$item.Title}}</label>
+            <span class="layui-input-inline">{{$item.Html | HtmlUnescaped}}</span>
+        </li>
+        {{ end }}
+        <li class="layui-inline">
+            <div class="layui-btn layui-btn-sm" admin-href="alert('ok1');" link-type="1">查询111</div>
         </li>
     </ul>
 </form>

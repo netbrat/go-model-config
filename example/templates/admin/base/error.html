@@ -3,7 +3,7 @@
 <div class="layui-fluid">
     <div class="admin-box">
         <fieldset class="layui-elem-field layui-field-title" style="margin-top: 20px">
-            <legend><i class="layui-icon layui-icon-close-fill" style="font-size: 40px; color:red;vertical-align:middle;"></i>[ {{.HttpStatus}} ] 页面发生错误啦！</legend>
+            <legend><i class="layui-icon layui-icon-close-fill" style="font-size: 40px; color:red;vertical-align:middle;"></i>[ {{.Result.code}} ] 页面发生错误啦！</legend>
         </fieldset>
         <ul style="margin:15px">
             <li class="layui-timeline-item">
@@ -24,7 +24,7 @@
                 <i class="layui-icon layui-timeline-axis">&#xe63f;</i>
                 <div class="layui-timeline-content layui-text">
                     <h3 class="layui-timeline-title">页面请求方式：</h3>
-                    <p>{{ .Context.Request.Method }} ({{ .Context.ContentType }})</p>
+                    <p>{{ .Context.Request.Method }} ({{ .Context.ContentType}})</p>
                 </div>
             </li>
             <li class="layui-timeline-item">
@@ -52,22 +52,14 @@
                             <tr><th width="200">键名</th><th>键值</th><th>说明</th></tr>
                           </thead>
                           <tbody>
-                              <tr><td>module</td><td>{{ .Context.Reqs.Module }}</td><td>路由模块</td></tr>
-                              <tr><td>controller</td><td>{{ .Context.Reqs.Controller }}</td><td>路由控制器</td></tr>
-                              <tr><td>real_module</td><td>{{ .Context.Reqs.RealModule }}</td><td>实际调用模块</td></tr>
-                              <tr><td>real_controller</td><td>{{ .Context.Reqs.RealController }}</td><td>实际调用控制器</td></tr>
-                              <tr><td>action</td><td>{{ .Context.Reqs.Action }}</td><td>操作方法</td></tr>
-                              <tr><td>model</td><td>{{ .Context.Reqs.Model }}</td><td>自定义模型配置名</td></tr>
+                              <tr><td>module</td><td>{{ .Context.ModuleName }}</td><td>路由模块</td></tr>
+                              <tr><td>controller</td><td>{{ .Context.ControllerName }}</td><td>路由控制器</td></tr>
+                              <tr><td>real_module</td><td>{{ .Context.RealModuleName }}</td><td>实际调用模块</td></tr>
+                              <tr><td>real_controller</td><td>{{ .Context.RealControllerName }}</td><td>实际调用控制器</td></tr>
+                              <tr><td>action</td><td>{{ .Context.ActionName }}</td><td>操作方法</td></tr>
+                              <tr><td>model</td><td>{{ .Context.ModelName }}</td><td>自定义模型配置名</td></tr>
                           </tbody>
                       </table>
-                </div>
-            </li>
-
-            <li class="layui-timeline-item">
-                <i class="layui-icon layui-timeline-axis">&#xe63f;</i>
-                <div class="layui-timeline-content layui-text">
-                  <h3 class="layui-timeline-title">详细错误信息：</h3>
-                  <xmp style="word-wrap: break-word;">{{ .Result.error_info }}</xmp>
                 </div>
             </li>
         </ul>

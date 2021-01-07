@@ -7,33 +7,49 @@ import (
 
 //控制器接口
 type IController interface {
-	Init(*Context)
-	AbortWithSuccess(result interface{})
-	AbortWithError(httpStatus int, result interface{})
+	Initialize(*Context)
+	AbortWithSuccess(result map[string]interface{})
+	AbortWithError(httpStatus int, code int, err error)
 	SaveLog()
-}
-
-
-//输出内容
-type Assign struct {
-	HttpStatus	int
-	Context		*Context
-	Result		interface{}
 }
 
 
 //控制器基类
 type Controller struct {
 	Context  	*Context
-	Assign   	*Assign
 	Template 	string
+	Auth		*Auth
+	Assign		*Assign
+	LogIgnoreActions []string	//不保存的操作方法，如["*"]表示该控制器下的所有方法全部不保存，默认["index","export"]
 }
 
+
+type Assign struct {
+	Context *Context
+	Model   *Model
+	Result  map[string]interface{}
+}
+
+//结果
+type Result struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data"`
+	Total   int64       `json:"total"`
+	Footer  interface{} `json:"footer"`
+	Other	interface{} `json:"other"`
+}
+
+
 //初始化基类
-func (ctrl *Controller) Init(c *Context) {
+func (ctrl *Controller) Initialize(c *Context) {
 	ctrl.Context = c
-	ctrl.Template = fmt.Sprintf("%s/%s_%s.html", ctrl.Context.Reqs.RealModule, ctrl.Context.Reqs.RealController, ctrl.Context.Reqs.Action)
-	ctrl.Assign = &Assign{Context: c}
+	ctrl.Template = fmt.Sprintf("%s/%s_%s.html", ctrl.Context.RealModuleName, ctrl.Context.RealControllerName, ctrl.Context.ActionName)
+	if ctrl.LogIgnoreActions == nil || len(ctrl.LogIgnoreActions)<=0 {
+		ctrl.LogIgnoreActions = []string{"index","export"}
+	}
+	ctrl.Assign = &Assign{Context: ctrl.Context}
+
 	ctrl.SaveLog()
 }
 
@@ -43,25 +59,22 @@ func (ctrl *Controller) SaveLog() {
 }
 
 //成功输出
-func (ctrl *Controller) AbortWithSuccess(result interface{}) {
-	if result != nil {
-		ctrl.Assign.Result = result
-	}else{
-		ctrl.Assign.Result = map[string]interface{}{}
-	}
-	ctrl.Assign.HttpStatus = http.StatusOK
-	ctrl.Context.HTML(http.StatusOK, ctrl.Template, ctrl.Assign)
+func (ctrl *Controller) AbortWithSuccess(result map[string]interface{}) {
+	//result := option.SuccessCallBackFunc(ctrl.Context, r)
+	ctrl.Assign.Result = result
+	ctrl.Context.Render(http.StatusOK, ctrl.Template, ctrl.Assign)
 	ctrl.Context.Abort()
 }
 
 //错误输出
-func (ctrl *Controller) AbortWithError(httpStatus int, result interface{}) {
-	if result != nil {
-		ctrl.Assign.Result = result
-	}else{
-		ctrl.Assign.Result = map[string]interface{}{}
+func (ctrl *Controller) AbortWithError(httpStatus int, code int, err error) {
+	ctrl.Assign.Result = map[string]interface{}{
+		"code":    code,
+		"message": err.Error(),
 	}
-	ctrl.Assign.HttpStatus = httpStatus
-	ctrl.Context.HTML(httpStatus, option.ErrorTemplate, ctrl.Assign)
+	ctrl.Context.Render(httpStatus, option.ErrorTemplate, ctrl.Assign)
 	ctrl.Context.Abort()
 }
+
+
+

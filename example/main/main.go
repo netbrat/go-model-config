@@ -23,71 +23,81 @@ func main(){
 
 	option := mc.Default()
 
-	option.RouterMap = example.RouterMap
+	option.Controllers = example.Controllers
+	option.NotAuthActions = example.NotAuthActions
 	option.NotAuthRedirect = "/home/index/index"
 	option.ErrorTemplate = "base/error.html"
 	option.BaseControllerMapKey = "custom"
-	option.ConfigsFilePath = "./example/model_configs/"
-
+	option.ModelConfigsFilePath = "./example/model_configs/"
+	option.WidgetTemplatePath("./example/widgets/")
+	//option.ErrorCallBackFunc = func(httpStatus int, ctx *mc.Context, err error) map[string]interface{} {
+	//	return map[string]interface{}{
+	//		"code": httpStatus,
+	//		"msg": err.Error(),
+	//		"request": map[string]interface{}{
+	//			"uri": ctx.Request.RequestURI,
+	//			"method": ctx.Request.Method,
+	//			"content_type": ctx.ContentType(),
+	//			"form": ctx.Request.Form,
+	//		},
+	//		"reqs": map[string]interface{}{
+	//			"module":ctx.ModuleName,
+	//			"controller": ctx.ControllerName,
+	//			"real_module":ctx.RealModuleName,
+	//			"real_controller":ctx.RealControllerName,
+	//			"action": ctx.ActionName,
+	//			"model": ctx.ModelName,
+	//		},
+	//	}
+	//}
 
 	_ = mc.AppendDB("default", getDB())
 
 
 
 	m := mc.NewModel("sys_role")
-	if data, err := m.FindKvs(&mc.KvsQueryOption{ExtraFields:[]string{"memo"}}); err != nil{
-		panic(err)
-	}else{
-		fmt.Println(data)
-	}
-	if data, footer, total, err := m.Find(nil); err != nil {
-	//if data, exist, err := m.Take(nil); err != nil {
-		panic(err)
-	}else{
-		fmt.Println(data)
-		fmt.Println(total)
-		fmt.Println(footer)
-	}
+	m.CreateSearchItems(nil)
 
 
-
-	//if conf,err := mc.GetConfig("sys_role"); err!=nil{
+	//if data, err := m.FindKvs(&mc.KvsQueryOption{ExtraFields:[]string{"memo"}},false); err != nil{
 	//	panic(err)
 	//}else{
-	//	jsonBytes, err := json.Marshal(conf)
-	//	if err != nil {
-	//		panic(err)
-	//	}
-	//	println(string(jsonBytes))
-	//	return
+	//	fmt.Println(data)
 	//}
-
-
-	return
-
-
-
-	//r := gin.Default()
-	//r.Use(Recover)
-	//r.NoMethod(mc.HandlerAdapt)
-	//r.NoRoute(mc.HandlerAdapt)
-	//
-	//r.StaticFS("/static", http.Dir("./example/static"))
-	////加载模版
-	//r.LoadHTMLGlob("./example/templates/admin/**/*")
-	//r.GET("/",func(c *gin.Context){c.Redirect(302,"/home/index/index")})
-	//
-	//err = r.Run(fmt.Sprintf("%s:%d", "0.0.0.0", 8111))
-	//if err != nil {
+	//if data, footer, total, err := m.Find(nil); err != nil {
+	////if data, exist, err := m.Take(nil); err != nil {
 	//	panic(err)
+	//}else{
+	//	fmt.Println(data)
+	//	fmt.Println(total)
+	//	fmt.Println(footer)
 	//}
+
+
+
+
+	r := gin.Default()
+	//r.Use(Recover)
+	r.NoMethod(mc.HandlerAdapt)
+	r.NoRoute(mc.HandlerAdapt)
+
+	r.StaticFS("/static", http.Dir("./example/static"))
+	//加载模版
+	r.SetFuncMap(mc.TemplateFuncMap)
+	r.LoadHTMLGlob("./example/templates/admin/**/*.html")
+	r.GET("/",func(c *gin.Context){c.Redirect(302,"/home/index/index")})
+
+	err := r.Run(fmt.Sprintf("%s:%d", "0.0.0.0", 8111))
+	if err != nil {
+		panic(err)
+	}
 }
 
 
 func Recover(c *gin.Context){
 	defer func() {
 		if r := recover(); r != nil {
-			mc.AbortWithError(c, http.StatusInternalServerError, fmt.Sprintf("%s",r))
+			mc.AbortWithError(c, http.StatusInternalServerError, http.StatusInternalServerError, fmt.Errorf(fmt.Sprintf("%s",r)))
 		}
 	}()
 	c.Next()

@@ -26,7 +26,7 @@ type QueryOption struct {
 	ExtraWhere  []interface{}          //附加的查询条件
 	SearchValue map[string]interface{} //查询项的值
 	ExtraFields []string               //额外附加的查询字段
-	Order       string               	//排序
+	Order       string                 //排序
 	Page        int                    //查询页码
 	PageSize    int                    //查询记录数
 	NotRowAuth  bool                   //是否不使用行级权限过滤条件
@@ -35,9 +35,32 @@ type QueryOption struct {
 }
 
 
+// 获取模型数据库连接对象本身
+func (m *Model) DB() *gorm.DB{
+	return m.db
+}
+
+// 获取一个新的模型数据库连接对象
+func (m *Model) NewDB() *gorm.DB {
+	return m.db.Where("")
+}
+
+// 获取一个仅包含连接名及表名的连接对象
+func (m *Model) BaseDB() *gorm.DB {
+	db, err := GetDB(m.attr.ConnName)
+	if err != nil {
+		panic(err)
+	}
+	tb := fmt.Sprintf("%s AS %s", m.attr.Table, m.attr.Alias)
+	if m.attr.DBName != "" {
+		tb = fmt.Sprintf("`%s`.%s", m.attr.DBName, tb)
+	}
+	db.Table(tb)
+	return db
+}
 
 // 获取Kv键值列表
-func (m *Model) FindKvs(so *KvsQueryOption) (result map[string]map[string]interface{}, err error){
+func (m *Model) FindKvs(so *KvsQueryOption) (result map[string]interface{}, err error){
 	//检查选项
 	if so == nil { so = &KvsQueryOption{KvName: "default"} }
 	if so.KvName == "" { so.KvName = "default" }
@@ -62,7 +85,7 @@ func (m *Model) FindKvs(so *KvsQueryOption) (result map[string]map[string]interf
 	}
 
 	//处理结果
-	result = map[string]map[string]interface{}{}
+	result = map[string]interface{}{}
 	for _, v := range data {
 		key := cast.ToString(v["__key"])
 		//树形
@@ -231,25 +254,13 @@ func (m *Model) parseWhere(db *gorm.DB, extraWhere []interface{}, searchValues m
 		theDB.Where(extraWhere[0], extraWhere[1:]...)
 	}
 
-
 	// 模型各查询字段
 	if !notSearch{
-		if searchValues == nil{
-			searchValues = map[string]interface{}{}
-		}
+		searchValues = m.ParseSearchValues(searchValues)
 		for _, f := range m.attr.SearchFields {
 			// 该查询字段未带条件配置，跳过
 			if f.Where == "" {
 				continue
-			}
-			// 未传入查询值时，使用默认值
-			if cast.ToString(searchValues[f.Name]) == "" {
-				if f.Default == nil {
-					continue
-					//delete(searchValues, f.Name)
-				} else {
-					searchValues[f.Name] = f.Default
-				}
 			}
 			// 查询值与查询条件匹配
 			values := make([]interface{}, 0)
@@ -357,7 +368,6 @@ func (m *Model) fieldsAddAlias(fields []string) []string{
 }
 
 
-
 // 对查询的数据进行处理
 func (m *Model) processData(data []map[string]interface{})(err error){
 	if data == nil || len(data) <= 0 { return }
@@ -365,15 +375,15 @@ func (m *Model) processData(data []map[string]interface{})(err error){
 		if _, ok := data[0][f.Name]; !ok {
 			continue
 		}
-		if f.Type == ModelFieldTypeKv || f.Type == ModelFieldTypeEnum {
-			enum := m.attr.getEnum(f.From, f.Type)
+		if f.From != "" {
+			enum := m.GetFromData(f.From)
 			for i, _:= range data {
 				vString := cast.ToString(data[i][f.Name]) //字段值
 				if f.Multiple{ //多选
 					vs := strings.Split(vString, f.Separator)
 					newVs := make([]string,0)
 					for _, v := range vs{
-						newVs = append(newVs, enum[v])
+						newVs = append(newVs, enum[v].(string))
 					}
 					data[i]["__" + f.Name] = strings.Join(newVs, f.Separator)
 				}else{ //单选

@@ -1,0 +1,36 @@
+{{define "home/test_index.html"}}
+    {{template "base/header" .}}
+    <div class="admin-table-full">
+        <table class="layui-hide" id="main_table" lay-filter="main-table"></table>
+        <!--查询栏-->
+        <script type="text/html" id="main_table_search_toolbar">
+            {{template  "base/search_form" .}}
+        </script>
+        <!--工具栏-->
+        <script type="text/html" id="main_table_toolbar">
+            <div class="layui-btn-container">
+                <a class="layui-btn layui-btn-sm" id="mtt_add" lay-event="mtt_add" admin-href="system/user/add" open-type="5">添加</a>
+                <a class="layui-btn layui-btn-sm" id="mtt_edit" lay-event="mtt_edit">编辑</a>
+                <a class="layui-btn layui-btn-sm" id="mtt_del" lay-event="mtt_del">删除</a>
+            </div>
+        </script>
+    </div>
+    <script type="text/javascript">
+        //表格数据
+        customTableOptions = {
+            //url: '/static/user30.js',
+            where: {test:'test'},
+            //contentType: 'application/json',
+            cols: [[{"type": "checkbox", "fixed": "left"}, {"type": "numbers", "title": "\u5e8f\u53f7", "fixed": "left"}, {"field": "id", "title": "ID"}, {"field": "username", "title": "\u7528\u6237\u540d"}, {"field": "real_name", "title": "\u59d3\u540d"}, {"field": "is_super", "title": "\u8d85\u7ea7\u7ba1\u7406\u5458"}, {"field": "enable", "title": "\u542f\u7528\u72b6\u6001"}, {"field": "create_username", "title": "\u521b\u5efa\u4eba"}, {"field": "create_time", "title": "\u521b\u5efa\u65f6\u95f4"}]],
+        };
+
+        pageCallBack = function(){
+            layui.use('customtable',function(){
+                var customtable = layui.customtable;
+                customtable.render(customTableOptions);
+            });
+        };
+
+    </script>
+    {{template "base/footer" .}}
+{{end}}
