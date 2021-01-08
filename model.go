@@ -27,7 +27,7 @@ type Model struct {
 }
 
 // 新建一个自定义配制模型
-// @param config  配制名
+// @param configs  配制名
 func NewModel(config string) (m *Model) {
 	attr := &ModelAttr{}
 	if strings.Contains(config, "{") {

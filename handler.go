@@ -30,12 +30,12 @@ func HandlerAdapt(c *gin.Context) {
 	var obj IController
 	ok := false
 	//先查找路由指定的模块及控制器
-	if obj, ok = option.Controllers[ctx.ModuleName][ctx.ControllerName]; ok {
+	if obj, ok = option.ControllerMap[ctx.ModuleName][ctx.ControllerName]; ok {
 		//找到不作处理
-	} else if obj, ok = option.Controllers[ctx.ModuleName][option.ModuleBaseControllerMapKey]; ok {
+	} else if obj, ok = option.ControllerMap[ctx.ModuleName][option.ModuleBaseControllerMapKey]; ok {
 		//找不到，再查找路由指定的模块下公共控制器
 		ctx.RealControllerName = option.ModuleBaseControllerMapKey
-	} else if  obj, ok = option.Controllers[option.BaseModuleMapKey][option.BaseControllerMapKey]; ok {
+	} else if  obj, ok = option.ControllerMap[option.BaseModuleMapKey][option.BaseControllerMapKey]; ok {
 		//再查找app下的公共控制器
 		ctx.RealModuleName = option.BaseModuleMapKey
 		ctx.RealControllerName = option.BaseControllerMapKey
@@ -57,6 +57,7 @@ func HandlerAdapt(c *gin.Context) {
 		actionName = ToCamelCase(ctx.ActionName, false)
 		fn = objValue.MethodByName(actionName)
 		if fn.Kind() != reflect.Func {
+			fmt.Println("ERR")
 			obj.AbortWithError(http.StatusNotFound, http.StatusNotFound, fmt.Errorf(fmt.Sprintf("未找到对应的操作方法[%s.%s.%s]", ctx.ModuleName, ctx.ControllerName, ctx.ActionName)))
 			return
 		}

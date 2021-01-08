@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/netbrat/go-model-config"
-	"github.com/netbrat/go-model-config/example"
+	"github.com/netbrat/mc"
+	"github.com/netbrat/mc/example/controller"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -15,65 +15,21 @@ import (
 )
 
 
-
-
 func main(){
 
 	gin.SetMode("debug")
 
 	option := mc.Default()
 
-	option.Controllers = example.Controllers
-	option.NotAuthActions = example.NotAuthActions
+	option.ControllerMap = controller.ControllerMap
+	option.NotAuthActions = controller.NotAuthActions
 	option.NotAuthRedirect = "/home/index/index"
 	option.ErrorTemplate = "base/error.html"
-	option.BaseControllerMapKey = "custom"
-	option.ModelConfigsFilePath = "./example/model_configs/"
-	option.WidgetTemplatePath("./example/widgets/")
-	//option.ErrorCallBackFunc = func(httpStatus int, ctx *mc.Context, err error) map[string]interface{} {
-	//	return map[string]interface{}{
-	//		"code": httpStatus,
-	//		"msg": err.Error(),
-	//		"request": map[string]interface{}{
-	//			"uri": ctx.Request.RequestURI,
-	//			"method": ctx.Request.Method,
-	//			"content_type": ctx.ContentType(),
-	//			"form": ctx.Request.Form,
-	//		},
-	//		"reqs": map[string]interface{}{
-	//			"module":ctx.ModuleName,
-	//			"controller": ctx.ControllerName,
-	//			"real_module":ctx.RealModuleName,
-	//			"real_controller":ctx.RealControllerName,
-	//			"action": ctx.ActionName,
-	//			"model": ctx.ModelName,
-	//		},
-	//	}
-	//}
+	option.ModelConfigsFilePath = "./mconfigs/"
+	option.WidgetTemplatePath("./widgets/")
+
 
 	_ = mc.AppendDB("default", getDB())
-
-
-
-	m := mc.NewModel("sys_role")
-	m.CreateSearchItems(nil)
-
-
-	//if data, err := m.FindKvs(&mc.KvsQueryOption{ExtraFields:[]string{"memo"}},false); err != nil{
-	//	panic(err)
-	//}else{
-	//	fmt.Println(data)
-	//}
-	//if data, footer, total, err := m.Find(nil); err != nil {
-	////if data, exist, err := m.Take(nil); err != nil {
-	//	panic(err)
-	//}else{
-	//	fmt.Println(data)
-	//	fmt.Println(total)
-	//	fmt.Println(footer)
-	//}
-
-
 
 
 	r := gin.Default()
@@ -81,10 +37,11 @@ func main(){
 	r.NoMethod(mc.HandlerAdapt)
 	r.NoRoute(mc.HandlerAdapt)
 
-	r.StaticFS("/static", http.Dir("./example/static"))
+	r.StaticFS("/static", http.Dir("./static"))
 	//加载模版
 	r.SetFuncMap(mc.TemplateFuncMap)
-	r.LoadHTMLGlob("./example/templates/admin/**/*.html")
+	r.LoadHTMLGlob("./templates/**/*.html")
+
 	r.GET("/",func(c *gin.Context){c.Redirect(302,"/home/index/index")})
 
 	err := r.Run(fmt.Sprintf("%s:%d", "0.0.0.0", 8111))
@@ -110,9 +67,9 @@ func getDB() *gorm.DB{
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
 		logger.Config{
-			SlowThreshold: 0,   // 慢 SQL 阈值
+			SlowThreshold: 0,           // 慢 SQL 阈值
 			LogLevel:      logger.Info, // Log level
-			Colorful:      true,         // 禁用彩色打印
+			Colorful:      true,        // 禁用彩色打印
 		},
 	)
 
@@ -191,7 +148,7 @@ func getDB() *gorm.DB{
 	//
 	//
 	//
-	////if config.Config.Debug{
+	////if configs.Config.Debug{
 	////	db.LogMode(true)
 	////}
 	//dbMap[connName] = db

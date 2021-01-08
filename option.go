@@ -28,7 +28,7 @@ type Option struct {
 	VarPageSize                string                            //前端页记录数参数名			默认值："page_size"
 	UrlPathSep                 string                            //URL路径之间的分割符号（不能使用_下线线）	默认为 "/"
 	UrlHtmlSuffix              string                            //URL伪静态后缀设置			默认为 "html"
-	Controllers                map[string]map[string]IController //控制器map
+	ControllerMap                map[string]map[string]IController //控制器map
 	NotAuthActions             []string                          //无须登录认证的操作方法列表
 	NotAuthRedirect            string                            //未登录跳转到页面地址 		默认值 "/admin/public/login.html"
 	BaseModuleMapKey           string                            //全局基础模块key			默认值 "base"
@@ -37,7 +37,7 @@ type Option struct {
 	//ErrorCallBackFunc          ErrorCallBackFunc                 //错误回调
 	//SuccessCallBackFunc        SuccessCallBackFunc               //成功回调
 	ErrorTemplate              string                            //错误页面模版				默认值 "error.html"
-	ModelConfigsFilePath       string                            //自定义模型配置文件存放路径	默认值："./model_configs/"
+	ModelConfigsFilePath       string                            //自定义模型配置文件存放路径	默认值："./mconfigs/"
 	widgetTemplatePath         string                 			//小物件模版					默认值："./widgets/"
 }
 
@@ -49,7 +49,7 @@ var option = Option{
 	PageSize:                   50,
 	UrlPathSep:                 "/",
 	UrlHtmlSuffix:              "html",
-	Controllers:                map[string]map[string]IController{},
+	ControllerMap:                map[string]map[string]IController{},
 	NotAuthActions:             []string{},
 	NotAuthRedirect:            "/public/login.html",
 	BaseModuleMapKey:           "base",
@@ -58,7 +58,7 @@ var option = Option{
 	//ErrorCallBackFunc:          defaultErrorCallBackFunc,
 	//SuccessCallBackFunc:        defaultSuccessCallBackFunc,
 	ErrorTemplate:              "error.html",
-	ModelConfigsFilePath:       "./model_configs/",
+	ModelConfigsFilePath:       "./mconfigs/",
 	widgetTemplatePath:			"./widgets/",
 }
 

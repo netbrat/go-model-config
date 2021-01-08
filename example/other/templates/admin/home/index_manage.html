@@ -1,0 +1,126 @@
+{{define "home/index_manage.html"}}
+{{template "base/header" .}}
+<div class="layout-main">
+    <!--左侧菜单-->
+    <div class="layui-side layui-bg-black ">
+
+        <!--分组tabs-->
+        <div class="layui-tab layui-tab-brief" id="admin_menu_group_tabs">
+            <ul class="layui-tab-title">
+                <li class="layui-this"><i class="layui-icon layui-icon-app"></i><span>业务</span></li>
+                <li><i class="layui-icon layui-icon-table"></i><span>数据</span></li>
+                <li><i class="layui-icon layui-icon-engine"></i><span>监控</span></li>
+                <li><i class="layui-icon layui-icon-util"></i><span>运维</span></li>
+                <li><i class="layui-icon layui-icon-set"></i><span>系统</span></li>
+            </ul>
+
+            <div class="layui-tab-content">
+                <div class="layui-tab-item layui-show">
+                    <div class="layui-side-scroll">
+                        <ul class="layui-nav layui-nav-tree" lay-filter="admin-menu-tabs">
+                            <li class="layui-nav-item layui-nav-itemed">
+                                <a href="javascript:;">所有商品</a>
+                                <dl class="layui-nav-child">
+                                    <dd><a admin-href="/system/user/index">用户管理</a></dd>
+                                    <dd><a admin-href="/home/test/index.html">列表二</a></dd>
+                                    <dd><a admin-href="/system/user/add.html" opentype="3">列表三</a></dd>
+                                    <dd><a admin-href="alert('ok');" linktype="1">超链接</a></dd>
+                                </dl>
+                            </li>
+                            <li class="layui-nav-item">
+                                <a href="javascript:;">解决方案</a>
+                                <dl class="layui-nav-child">
+                                    <dd><a admin-href="/home/index/home6.html">列表一</a></dd>
+                                    <dd><a admin-href="/home/index/home7.html">列表二</a></dd>
+                                    <dd>
+                                        <a href="javascript:;">三级</a>
+                                        <dl class="layui-nav-child">
+                                            <dd><a admin-href="/home/index/home8.html">列表一11</a></dd>
+                                            <dd><a admin-href="/home/index/home9.html">列表二</a></dd>
+                                        </dl>
+                                    </dd>
+                                </dl>
+                            </li>
+                            <li class="layui-nav-item"><a admin-href="/home/index/home10.html">云市场</a></li>
+                            <li class="layui-nav-item"><a admin-href="/home/index/home11.html">发布商品</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="layui-tab-item">bbb</div>
+                <div class="layui-tab-item">ccc</div>
+
+
+            </div>
+        </div>
+    </div>
+    <!--左侧菜单结束-->
+    <!--右侧主体开始-->
+    <div class="layout-right">
+
+        <div class="pagetabs">
+
+            <div class="layui-icon tabs-control layui-icon-prev" admin-event="leftPage"></div>
+            <div class="layui-icon tabs-control layui-icon-next" admin-event="rightPage"></div>
+            <div class="layui-icon tabs-control layui-icon-down">
+                <ul class="layui-nav tabs-select">
+                    <li class="layui-nav-item">
+                        <a href="javascript:;"></a>
+                        <dl class="layui-nav-child">
+                            <dd admin-event="closeThisTabs" lay-unselect><a href="javascript:;">关闭当前标签页</a></dd>
+                            <dd admin-event="closeOtherTabs" lay-unselect><a href="javascript:;">关闭其它标签页</a>
+                            </dd>
+                            <dd admin-event="closeAllTabs" lay-unselect><a href="javascript:;">关闭全部标签页</a></dd>
+                        </dl>
+                    </li>
+                </ul>
+            </div>
+            <div class="layui-tab" lay-filter="admin-layout-tabs" lay-unauto lay-allowClose="true">
+                <!--标签栏开始-->
+                <ul class="layui-tab-title" id="admin_app_tabsheader">
+                    <li lay-id="/home/index/home.html" class="layui-this admin-no-close"><i
+                                class="layui-icon layui-icon-home"></i></li>
+                </ul>
+                <!--标签栏结束-->
+                <!--内容主体开始-->
+                <div class="layui-tab-content" id="admin_app_main_body">
+                    <div class="layui-tab-item layui-show">
+                        <iframe src="/home/index/home.html" frameborder="0" class="layadmin-iframe"></iframe>
+                    </div>
+                </div>
+                <!--内容主体结束-->
+            </div>
+        </div>
+    </div>
+    <!--右侧主体结束-->
+</div>
+
+<script type="text/javascript">
+
+    pageCallBack = function () {
+        var layer = layui.layer,
+            $ = layui.jquery;
+
+        // if (!parent.layui.admin.side.spread) {
+        //     $("#admin_app").addClass("side-shrink");
+        // }
+
+        //侧边分组tabs点击时
+        $("#admin_menu_group_tabs>.layui-tab-title>li").click(function () {
+            //展开侧边
+            parent.layui.admin.sideFlexible(true);
+        }).mouseenter(function () {
+            //显示tips
+            if (!$("#admin_app").hasClass('side-shrink')) return;
+            text = $(this).find("span").html();
+            layer.tips(text, this);
+        }).mouseleave(function () {
+            //隐藏tips
+            layer.close(layer.index);
+        });
+    }
+
+</script>
+
+{{template "base/footer" .}}
+{{end}}
