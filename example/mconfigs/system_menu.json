@@ -1,0 +1,35 @@
+{
+  "conn_name": "default",
+  "table": "system_menu",
+  "pk": "id",
+  "auto_inc": true,
+  "orders": "path asc",
+  "fields": [
+    {"name":"id", "title": "编码"},
+    {"name":"name","title": "名称", "required": true},
+    {"name":"type","title": "分类", "from":"type", "required": true, "widget": "select"},
+    {"name":"path","title": "路径", "required": true, "info": "树形结构，2 位为一级，如上级为 10，则此级为 1001、1002..."},
+    {"name":"link_type","title": "链接类型", "from":"link_type", "required": true, "widget": "select"},
+    {"name":"link","title": "链接地址"},
+    {"name":"param_type","title": "参数类型", "from":"param_type", "default":"2", "required": true, "widget": "select"},
+    {"name":"open_type","title": "打开方式", "from":"open_type", "required": true, "widget": "select"},
+    {"name":"width","title": "窗口宽度", "default": 0, "info": "0 或 空 时，默认600px，-1 时全屏"},
+    {"name":"width","title": "窗口高度", "default": 0,"info": "0 或 空 时，默认600px，-1 时全屏"},
+    {"name":"icon","title": "图标样式"},
+    {"name":"def","title": "默认操作", "from":"yesno", "default":"N", "widget": "radio"},
+    {"name":"confirm","title": "操作询问"},
+    {"name":"enabled","title": "是否启用", "from":"yesno", "default":"Y", "widget": "radio"},
+    {"name":"updated_at","title": "更新时间", "disabled": true},
+    {"name":"created_at","title": "创建时间", "disabled": true}
+  ],
+  "search_fields": [
+    {"name":"id","title": "菜单", "where": "id=? or name like ?", "values" : ["?","'%?%'"], "placeholder": "请输入菜单编码或名称"}
+  ],
+  "enums": {
+    "yesno": {"Y": "是", "N": "否"},
+    "type": {"0": "分组", "1": "菜单", "2": "操作按钮"},
+    "link_type": {"0": "链接", "1": "JS"},
+    "param_type": {"0": "无", "1": "查询", "2": "单行列表", "3": "多行列表"},
+    "open_type": {"0": "标签页", "1": "新窗口", "2": "本页面", "3": "普通弹窗", "4": "编辑弹窗", "5": "无窗口"}
+  }
+}

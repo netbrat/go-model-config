@@ -1,0 +1,5 @@
+{{define "radio"}}
+    {{ range $key,$val := .FromDataMap}}
+        <input type="radio" class="{{if $.Field.Disabled}}layui-disabled{{end}} {{$.Field.CssClass}}" style="{{.Field.CssStyle}}" id="{{$.Field.Name}}_{{$key}}" name="{{$.Field.Name}}" title=" {{$val.__value}}" value="{{$key}}"  {{if $.Value}}{{if eq $.Value $key}}checked{{end}}{{end}}{{if $.Field.Disabled}} disabled {{end}} />
+    {{end}}
+{{end}}

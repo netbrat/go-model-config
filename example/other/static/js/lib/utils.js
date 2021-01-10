@@ -115,7 +115,8 @@ layui.define(function(exports){
      */
     utils.ajax = function (options){
         options = options || {};
-        options.type = options.type || "get";
+        options.type = options.type || "GET";
+        options.contentType = options.contentType || 'application/x-www-form-urlencoded';
         options.data = options.data || {};
         options.data._t = Date.now();
         options.showType = options.showType || 0;
@@ -123,6 +124,7 @@ layui.define(function(exports){
             options.width = (options.width || '600') + 'px';
             options.height = (options.height || '450') + 'px';
         }
+        console.log(options);
         $.ajax({
             url: options.url,
             type: options.type,

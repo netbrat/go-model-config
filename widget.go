@@ -22,7 +22,7 @@ var widgets = make(map[string] *template.Template)
 type WidgetAssign struct{
     Field *ModelBaseField
     Value interface{}
-    FromData map[string]interface{}
+    FromDataMap map[string]interface{}
 }
 
 // 初始化所有 widget 模版
@@ -54,7 +54,7 @@ func initWidgets() {
 }
 
 //widget 的html
-func CreateWidget(field *ModelBaseField, value interface{}, fromData map[string]interface{}) string {
+func CreateWidget(field *ModelBaseField, value interface{}, fromDataMap map[string]interface{}) string {
     var buf bytes.Buffer
     key := strings.ToLower(field.Widget)
     if key == "" {
@@ -63,9 +63,9 @@ func CreateWidget(field *ModelBaseField, value interface{}, fromData map[string]
     if _, ok := widgets[key]; !ok{
         return ""
     }
-    widgetAssign := WidgetAssign{Field: field, Value: value, FromData:  fromData}
+    widgetAssign := WidgetAssign{Field: field, Value: value, FromDataMap:  fromDataMap}
     if err := widgets[key].ExecuteTemplate(&buf,key,widgetAssign); err != nil {
-        panic(err)
+        panic(fmt.Errorf("%s(%s) widget 渲染失败：%s",field.Name, key,err))
     }
 
     return buf.String()

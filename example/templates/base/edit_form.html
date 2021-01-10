@@ -1,0 +1,25 @@
+{{define "base/edit_form"}}
+    <form method="post" class="layui-form layui-form-pane admin-edit-form" id="edit_form" lay-filter="edit-form">
+        {{ range $key, $item := .Model.EditItems}}
+            <div class="layui-form-item {{if eq $item.Field.Widget  "textarea"}}layui-form-text{{end}}"
+                 {{if eq $item.Field.Widget "radio" "checkbox"}}
+                 pane
+                 {{end}}
+            >
+                <label class="layui-form-label">
+                    {{if $item.Field.Required}}<em>*</em>{{end}}{{$item.Field.Title}}
+                </label>
+                <div class="layui-input-block">
+                    {{$item.Html | HtmlUnescaped}}
+                    {{ if $item.Field.Info}}
+                        <div class="layui-form-mid layui-word-aux">{{$item.Field.Info}}</div>
+                    {{end}}
+                </div>
+
+            </div>
+        {{ end }}
+    </form>
+    <script>
+        layui.form.render(null, 'edit-form');
+    </script>
+{{end}}

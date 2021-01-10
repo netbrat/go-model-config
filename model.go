@@ -9,12 +9,8 @@ import (
 )
 
 type FormItem struct {
-	Name string
-	Title string
+	Field *ModelBaseField
 	Html string
-	Info string
-	Require bool
-	Br	bool
 }
 
 
@@ -72,9 +68,9 @@ func (m *Model) SetAttr(attr *ModelAttr) *Model{
 }
 
 // 列表字段索引
-func (m *Model) ListFields() map[string]int{
-	return m.attr.listFields
-}
+//func (m *Model) ListFields() []ModelListFieldIndex{
+//	return m.attr.listFieldIndex
+//}
 
 // 分析查询项的值，某项不存在，侧使用配置默认值替代
 func (m *Model) ParseSearchValues(searchValues map[string]interface{}) (values map[string]interface{}){
@@ -96,7 +92,7 @@ func (m *Model) ParseSearchValues(searchValues map[string]interface{}) (values m
 
 
 // 获取From来源数据
-func (m *Model) GetFromData (from string) (data map[string]interface{}){
+func (m *Model) GetFromDataMap (from string) (data map[string]interface{}){
 	data = make(map[string]interface{})
 	if from == "" {return}
 	isKv := strings.Contains(from, ":")
@@ -138,18 +134,19 @@ func (m *Model) CreateSearchItems(values map[string]interface{}) {
 // 编辑项
 func  (m *Model) CreateEditItems(values map[string]interface{}) {
 	m.EditItems = make([]FormItem,0)
-	for _, index := range m.ListFields() {
-		field := m.attr.Fields[index]
+	for i, _ := range m.attr.Fields {
+		field := m.attr.Fields[i]
 		//如果不允许编辑项（不包含PK字段）
-		if !*field.Editable && field.Name != m.attr.Pk {
+		if field.EditHide && field.Name != m.attr.Pk {
 			continue
 		}
 		item := m.createFormItems(&field.ModelBaseField, values[field.Name])
 		if field.Name == m.attr.Pk {
-			if *m.attr.AutoInc {
-				item.Html = fmt.Sprintf(`<input type="hidden" id="%s", name="%s" vlaue="%s" /> %s`, field.Name, field.Name, values[field.Name], values[field.Name])
-			}else {
-				item.Html += fmt.Sprintf(`<input type="hidden" id="__%s", name="__%s" vlaue="%s" />`, field.Name, field.Name, values[field.Name])
+			value := cast.ToString(values[field.Name])
+			if m.attr.NotAutoInc {
+				item.Html += fmt.Sprintf(`<input type="hidden" id="__%s"  name="__%s" vlaue="%s" />`, field.Name, field.Name, value)
+			//}else {
+				//item.Html = fmt.Sprintf(`<input type="hidden" id="%s"  name="%s" vlaue="%s" /> %s`, field.Name, field.Name, value, value)
 			}
 		}
 		m.EditItems = append(m.EditItems, item)
@@ -166,15 +163,11 @@ func (m *Model) createFormItems(field *ModelBaseField, value interface{}) FormIt
 	if field.From == "" {
 		enum = nil
 	} else {
-		enum = m.GetFromData(field.From)
+		enum = m.GetFromDataMap(field.From)
 	}
 	item := FormItem{
-		Name:    field.Name,
-		Title:   field.Title,
-		Html:    CreateWidget(field, value, enum),
-		Info:    field.Info,
-		Require: field.Require,
-		Br:      field.Br,
+		Field: field,
+		Html:  CreateWidget(field, value, enum),
 	}
 	return item
 }

@@ -1,0 +1,3 @@
+{{define "checkbox"}}
+    <input type="checkbox" class="{{if .Field.Disabled}}layui-disabled{{end}} {{.Field.CssClass}}" style="{{.Field.CssStyle}}" id="{{.Field.Name}}" name="{{.Field.Name}}" title="{{.Field.Title}}" value="" {{if .Value}} checked {{end}}{{if .Field.Disabled}} disabled {{end}} />
+{{end}}

@@ -7,7 +7,3 @@ type ModelController struct {
 }
 
 
-func (ctrl *ModelController) Initialize(c *mc.Context){
-    c.ModelName = "sys_role"
-    ctrl.ModelController.Initialize(c)
-}

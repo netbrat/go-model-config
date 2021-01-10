@@ -11,11 +11,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"time"
 )
 
 
 func main(){
+
 
 	gin.SetMode("debug")
 
@@ -33,15 +35,16 @@ func main(){
 
 
 	r := gin.Default()
-	//r.Use(Recover)
-	r.NoMethod(mc.HandlerAdapt)
-	r.NoRoute(mc.HandlerAdapt)
+	r.Use(Recover)
+
 
 	r.StaticFS("/static", http.Dir("./static"))
 	//加载模版
 	r.SetFuncMap(mc.TemplateFuncMap)
 	r.LoadHTMLGlob("./templates/**/*.html")
 
+	r.NoMethod(mc.HandlerAdapt)
+	r.NoRoute(mc.HandlerAdapt)
 	r.GET("/",func(c *gin.Context){c.Redirect(302,"/home/index/index")})
 
 	err := r.Run(fmt.Sprintf("%s:%d", "0.0.0.0", 8111))
@@ -54,6 +57,9 @@ func main(){
 func Recover(c *gin.Context){
 	defer func() {
 		if r := recover(); r != nil {
+			var buf [4096]byte
+			n := runtime.Stack(buf[:], false)
+			fmt.Println(string(buf[:n]))
 			mc.AbortWithError(c, http.StatusInternalServerError, http.StatusInternalServerError, fmt.Errorf(fmt.Sprintf("%s",r)))
 		}
 	}()

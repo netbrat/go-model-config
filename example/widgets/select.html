@@ -1,0 +1,8 @@
+{{define "select"}}
+    <select class="{{if .Field.Disabled}}layui-disabled{{end}} {{.Field.CssClass}}" style="{{.Field.CssStyle}}" id="{{.Field.Name}}" name="{{.Field.Name}}"{{if .Field.Required}} required lay-verify="required" {{end}}{{if .Field.Disabled}} disabled {{end}}lay-search>
+        {{ if not .Field.NotNullOption}}<option value="">请选择</option>{{end }}
+        {{ range $key,$val := .FromDataMap}}
+            <option value="{{$key}}" {{if $.Value}}{{if eq $.Value $key}}selected{{end}}{{end}}>{{$val.__value}}</option>
+        {{end}}
+    </select>
+{{end}}

@@ -9,9 +9,15 @@ import (
 
 //未初始化控制器之前的错误处理
 func AbortWithError(c *gin.Context, httpStatus int, code int, err error){
-	//初始化上下文
-	obj := &Controller{}
-	obj.Initialize(NewContext(c))
+	var obj IController
+	controller, exist := c.Get("IController")
+	if exist && controller != nil {
+		obj = controller.(IController)
+	}else{
+		obj = &Controller{}
+		//初始化上下文
+		obj.Initialize(NewContext(c))
+	}
 	obj.AbortWithError(httpStatus, code, err)
 }
 
@@ -45,6 +51,8 @@ func HandlerAdapt(c *gin.Context) {
 		return
 	}
 
+	//主要是为了发生异常，显示错误时再次初始化一个默认控制器
+	c.Set("IController", obj)
 	//初始化控制器
 	obj.Initialize(ctx)
 
@@ -57,7 +65,6 @@ func HandlerAdapt(c *gin.Context) {
 		actionName = ToCamelCase(ctx.ActionName, false)
 		fn = objValue.MethodByName(actionName)
 		if fn.Kind() != reflect.Func {
-			fmt.Println("ERR")
 			obj.AbortWithError(http.StatusNotFound, http.StatusNotFound, fmt.Errorf(fmt.Sprintf("未找到对应的操作方法[%s.%s.%s]", ctx.ModuleName, ctx.ControllerName, ctx.ActionName)))
 			return
 		}

@@ -7,13 +7,13 @@
         <!--头部-->
         <div class="layui-header">
             <div class="layui-logo">
-                <span class="title">MCAdmin<br/>轻代码后台管理系统</span>
-                <span class="title-short">MCAdmin</span>
+                <span class="title">Example</span>
+                <span class="title-short">Example</span>
             </div>
             <ul class="layui-nav layui-layout-left">
                 <li class="layui-nav-item" lay-unselect>
                     <a href="javascript:;" admin-event="flexible" title="侧边伸缩">
-                        <i class="layui-icon layui-icon-shrink-right" id="admin_flexible"></i>
+                        <i class="layui-icon layui-icon-shrink-right" id="admin_app_flexible"></i>
                     </a>
                 </li>
                 <li class="layui-nav-item" lay-unselect>
@@ -24,7 +24,7 @@
                 <li class="layui-nav-item layui-hide-xs" lay-unselect>
                     <input type="text" placeholder="搜索..." autocomplete="off" class="layui-input layui-input-search" admin-event="serach">
                 </li>
-            </ul>C
+            </ul>
             <ul class="layui-nav layui-layout-right">
                 <li class="layui-nav-item" lay-unselect>
                     <a href="javascript:;" admin-event="fullScreen" title="全屏">
@@ -45,8 +45,8 @@
 
         <!--左侧菜单-->
         <div class="layui-side layui-bg-black ">
-            <!--分组tabs-->
-            <div class="layui-tab layui-tab-brief" id="admin_menu_tabs">
+            <!--分组tabs--><!--
+            <div class="layui-tab layui-tab-brief" id="admin_menu_group_tabs">
                 <ul class="layui-tab-title">
                     <li class="layui-this"><i class="layui-icon layui-icon-app"></i><span>业务</span></li>
                     <li><i class="layui-icon layui-icon-table"></i><span>数据</span></li>
@@ -54,6 +54,7 @@
                     <li><i class="layui-icon layui-icon-util"></i><span>运维</span></li>
                     <li><i class="layui-icon layui-icon-set"></i><span>系统</span></li>
                 </ul>
+
                 <div class="layui-tab-content">
                     <div class="layui-tab-item layui-show">
                         <div class="layui-side-scroll">
@@ -62,10 +63,9 @@
                                     <a href="javascript:;">所有商品</a>
                                     <dl class="layui-nav-child">
                                         <dd><a admin-href="/system/user/index">用户管理</a></dd>
-                                        <dd><a admin-href="/system/menu/index">菜单管理</a></dd>
                                         <dd><a admin-href="/home/test/index.html">列表二</a></dd>
-                                        <dd><a admin-href="/system/user/add.html" open-type="3">列表三</a></dd>
-                                        <dd><a admin-href="alert('ok');" link-type="1">超链接</a></dd>
+                                        <dd><a admin-href="/system/user/add.html" opentype="3">列表三</a></dd>
+                                        <dd><a admin-href="alert('ok');" linktype="1">超链接</a></dd>
                                     </dl>
                                 </li>
                                 <li class="layui-nav-item">
@@ -94,44 +94,10 @@
 
                 </div>
             </div>
+            -->
         </div>
         <!--左侧菜单结束-->
-        <div class="admin-layout-main">
-            <div class="pagetabs">
-                <div class="layui-icon tabs-control layui-icon-prev" admin-event="leftPage"></div>
-                <div class="layui-icon tabs-control layui-icon-next" admin-event="rightPage"></div>
-                <div class="layui-icon tabs-control layui-icon-down">
-                    <ul class="layui-nav tabs-select">
-                        <li class="layui-nav-item">
-                            <a href="javascript:;"></a>
-                            <dl class="layui-nav-child">
-                                <dd admin-event="closeThisTabs" lay-unselect><a href="javascript:;">关闭当前标签页</a></dd>
-                                <dd admin-event="closeOtherTabs" lay-unselect><a href="javascript:;">关闭其它标签页</a>
-                                </dd>
-                                <dd admin-event="closeAllTabs" lay-unselect><a href="javascript:;">关闭全部标签页</a></dd>
-                            </dl>
-                        </li>
-                    </ul>
-                </div>
-                <div class="layui-tab" lay-filter="admin-layout-tabs" lay-unauto lay-allowClose="true">
-                    <!--标签栏开始-->
-                    <ul class="layui-tab-title" id="admin_tabs_header">
-                        <li lay-id="/home/index/home.html" class="layui-this admin-no-close"><i
-                                    class="layui-icon layui-icon-home"></i></li>
-                    </ul>
-                    <!--标签栏结束-->
-                    <!--内容主体开始-->
-                    <div class="layui-tab-content" id="admin_main_body">
-                        <div class="layui-tab-item layui-show">
-                            <iframe src="/home/index/home.html" frameborder="0" class="admin-iframe"></iframe>
-                        </div>
-                    </div>
-                    <!--内容主体结束-->
-                </div>
 
-            </div>
-        </div>
-        <!--右侧 Tabs 结束 -->
 
     </div>
 </div>

@@ -10,6 +10,6 @@ func (ctrl *IndexController) Index(){
     ctrl.AbortWithSuccess(nil)
 }
 
-func(ctrl *IndexController) Manage(){
+func(ctrl *IndexController) Home(){
     ctrl.AbortWithSuccess(nil)
 }

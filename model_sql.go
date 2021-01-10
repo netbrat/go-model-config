@@ -164,15 +164,17 @@ func (m *Model) Find(so *QueryOption) (desc []map[string]interface{},footer map[
 // 判断是否已有重复数据
 func (m *Model) IsUnique(data map[string]interface{})(exist bool, err error){
 	//如果没有设置唯一字段，且主键是自增时，直接返回不重复
-	if (m.attr.UniqueFields == nil || len(m.attr.UniqueFields) <= 0) && *m.attr.AutoInc {
+	if (m.attr.UniqueFields == nil || len(m.attr.UniqueFields) <= 0) && !m.attr.NotAutoInc {
 		return
 	}
 	db := m.BaseDB()
 
+	//检查唯一字段
 	for _, field := range m.attr.UniqueFields {
 		db.Where(fmt.Sprintf("%s = ?", field), data[field])
 	}
-	if !*m.attr.AutoInc {
+	//非自增PK表，检查PK字段
+	if m.attr.NotAutoInc {
 		db.Or(fmt.Sprintf("%s = ?", m.attr.Pk), data[m.attr.Pk])
 	}
 	var total int64
@@ -210,10 +212,10 @@ func (m *Model) Create(data map[string]interface{}) (rowsAffected int64, err err
 //保存记录（根据pk自动分析是update 或 create）
 func (m *Model) Save(data map[string]interface{})(rowsAffected int64, err error)  {
 	pk := ""
-	if *m.attr.AutoInc { //pk自增表
-		pk = m.attr.Pk
-	}else{
+	if m.attr.NotAutoInc { //非pk自增表
 		pk = "__" + m.attr.Pk
+	}else{
+		pk = m.attr.Pk
 	}
 	if data[pk] == nil{ //创建
 		return m.Create(data)
@@ -376,7 +378,7 @@ func (m *Model) processData(data []map[string]interface{})(err error){
 			continue
 		}
 		if f.From != "" {
-			enum := m.GetFromData(f.From)
+			enum := m.GetFromDataMap(f.From)
 			for i, _:= range data {
 				vString := cast.ToString(data[i][f.Name]) //字段值
 				if f.Multiple{ //多选

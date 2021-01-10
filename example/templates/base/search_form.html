@@ -1,0 +1,17 @@
+{{define "base/search_form"}}
+
+<form class="layui-form admin-search-form" id="search_form">
+    <ul class="layui-form-item">
+        {{ range $key, $item := .Model.SearchItems}}
+        <li class="layui-inline">
+            <label class="layui-form-label">{{$item.Field.Title}}</label>
+            <span class="layui-input-inline">{{$item.Html | HtmlUnescaped}}</span>
+        </li>
+        {{ end }}
+        <li class="layui-inline">
+            <div class="layui-btn layui-btn-sm" admin-href="alert('ok1');" link-type="1">查询</div>
+        </li>
+    </ul>
+</form>
+
+{{end}}
