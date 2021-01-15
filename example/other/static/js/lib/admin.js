@@ -320,12 +320,17 @@ layui.define(function(exports){
         if (utils.isEmptyOrNull(url)) {
             layer.open({title: '提示信息', content: '无法执行该操作!<br />该操作还未定义操作路径 [admin-href] 属性'});
         }
-        if(!utils.isEmptyOrNull(confirm)){
-            layer.confirm(confirm,{
-                btn:['确定','取消'],
-                function(){isCancel=false;},
-                function(){isCancel=true;}
-            })
+        if(!utils.isEmptyOrNull(confirm)) {
+            layer.confirm(confirm, {
+                    btn: ['确定', '取消']
+                },
+                function () {
+                    isCancel = false;
+                },
+                function () {
+                    isCancel = true;
+                }
+            )
         }
         if (isCancel) return;
 

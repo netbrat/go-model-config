@@ -17,17 +17,19 @@ layui.define(function(exports){
     };
 
     /**
-     * 判断内容是否是json格式字符串
+     * 判断内容是否是json格式
      * @param data
      * @returns {boolean}
      */
-    utils.isJson = function (data){
-        try{
-            $.parseJSON(data);
-            return true;
-        }catch(e){
-            return false;
+    utils.isJSON = function (data){
+        return typeof(data) == "object" && Object.prototype.toString.call(obj).toLowerCase() == "[object object]" && !obj.length;
+    };
+
+    utils.parseJSON = function (data) {
+        if (!utils.isJson(data)) {
+            data = JSON.parse(str)
         }
+        return data
     };
 
     /**
@@ -137,20 +139,41 @@ layui.define(function(exports){
                 layer.closeAll('loading');
             },
             success: function(data){
-                if (utils.isJson(data)) {
-                    if (typeof options.successJson === "function") {
-                        options.successJson(data);
-                    } else {
-                        data = $.parseJSON(data);
-                        layer.open({title: '提示信息', content: data.msg, icon: data.code == 0 ? 6 : 5});
+                try {
+                    console.log(data);
+                    data = utils.parseJSON(data);
+
+                    if (data.code.toString() === "0") { //返回成功
+                        layer.open({
+                            title: '提示信息', content: data.msg, icon: 6,
+                            yes: function () {
+                                layer.closeAll();
+                            }
+                        });
+                    } else { //返回失败
+                        layer.open({title: '提示信息', content: data.msg, icon: 5});
                     }
-                }else{
-                    if (typeof options.success === "function") {
-                        options.success(data);
-                    }else{
-                        layer.open({type:options.showType, title:'提示信息', content: data, area:[options.width, options.height], maxmin:true, resize:true, moveOut:true});
-                    }
+                }catch(e) { //非JSON格式
+                    layer.open({type:options.showType, title:'提示信息', content: data, area:[options.width, options.height], maxmin:true, resize:true, moveOut:true});
                 }
+
+
+
+                //
+                // if (utils.isJson(data)) {
+                //     if (typeof options.successJson === "function") {
+                //         options.successJson(data);
+                //     } else {
+                //         data = $.parseJSON(data);
+                //         layer.open({title: '提示信息', content: data.msg, icon: data.code == 0 ? 6 : 5});
+                //     }
+                // }else{
+                //     if (typeof options.success === "function") {
+                //         options.success(data);
+                //     }else{
+                //         layer.open({type:options.showType, title:'提示信息', content: data, area:[options.width, options.height], maxmin:true, resize:true, moveOut:true});
+                //     }
+                // }
             },
             error: function(){
                 if(typeof options.error === "function") {

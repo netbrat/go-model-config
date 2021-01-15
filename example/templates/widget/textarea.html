@@ -1,4 +1,4 @@
-{{define "textarea"}}
+{{define "widget/textarea"}}
     <textarea class="layui-textarea{{if .Field.Disabled}} layui-disabled{{end}} {{.Field.CssClass}}" style="{{.Field.CssStyle}}" id="{{.Field.Name}}" name="{{.Field.Name}}" placeholder="{{.Field.Placeholder}}"{{if .Field.Required}} required lay-verify="required" {{end}}{{if .Field.Disabled}} disabled {{end}}>
         {{.Value}}
     </textarea>

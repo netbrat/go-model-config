@@ -9,9 +9,24 @@
         </li>
         {{ end }}
         <li class="layui-inline">
-            <div class="layui-btn layui-btn-sm" admin-href="alert('ok1');" link-type="1">查询</div>
+            <div class="layui-btn layui-btn-sm" admin-href="alert('ok1');" link-type="1" id="search_button">查询</div>
         </li>
     </ul>
 </form>
+<script type="text/javascript">
+    layui.use([],function() {
+        var $ = layui.jquery;
+        layui.admin.global.searchFormId = "search_form"; //查询表单id
 
+        $("#search_button").on("click",function(){
+            var where = layui.utils.urlParamsToJSON($('#'+layui.admin.global.searchFormId).formSerialize());
+            console.log(layui.utils);
+            console.log(where);
+            layui.ctable.refresh({
+                where: where,
+                page:1
+            });
+        });
+    });
+</script>
 {{end}}

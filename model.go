@@ -13,6 +13,7 @@ type FormItem struct {
 	Html string
 }
 
+type Enum map[string]map[string]interface{} //Enum 或kvs集
 
 //模型结构体
 type Model struct {
@@ -21,6 +22,7 @@ type Model struct {
 	SearchItems []FormItem
 	EditItems	[]FormItem
 }
+
 
 // 新建一个自定义配制模型
 // @param configs  配制名
@@ -53,7 +55,7 @@ func (m *Model) SetAttr(attr *ModelAttr) *Model{
 	m.attr = attr
 
 	//创建一个连接并附加模型基础条件信息
-	m.db = m.BaseDB()
+	m.db = m.BaseDB(true)
 	if m.attr.Where != "" {
 		m.db.Where(attr.Where)
 	}
@@ -66,11 +68,6 @@ func (m *Model) SetAttr(attr *ModelAttr) *Model{
 	//m.db.Order(strings.Join(m.fieldsAddAlias(attr.Orders), ","))
 	return m
 }
-
-// 列表字段索引
-//func (m *Model) ListFields() []ModelListFieldIndex{
-//	return m.attr.listFieldIndex
-//}
 
 // 分析查询项的值，某项不存在，侧使用配置默认值替代
 func (m *Model) ParseSearchValues(searchValues map[string]interface{}) (values map[string]interface{}){
@@ -90,10 +87,9 @@ func (m *Model) ParseSearchValues(searchValues map[string]interface{}) (values m
 	return
 }
 
-
 // 获取From来源数据
-func (m *Model) GetFromDataMap (from string) (data map[string]interface{}){
-	data = make(map[string]interface{})
+func (m *Model) GetFromDataMap (from string) (enum Enum){
+	enum = make(Enum)
 	if from == "" {return}
 	isKv := strings.Contains(from, ":")
 	if isKv {
@@ -107,10 +103,10 @@ func (m *Model) GetFromDataMap (from string) (data map[string]interface{}){
 		}else{
 			newM = NewModel(f[0])
 		}
-		data, _ = newM.FindKvs(&KvsQueryOption{KvName:f[1]})
+		enum, _ = newM.FindKvs(&KvsQueryOption{KvName:f[1]})
 	}else {
 		for key, value := range m.attr.Enums[from]{
-			data[key] = map[string]interface{}{
+			enum[key] = map[string]interface{}{
 				"__key" : key,
 				"__value": value,
 			}
@@ -119,14 +115,19 @@ func (m *Model) GetFromDataMap (from string) (data map[string]interface{}){
 	return
 }
 
+func (m *Model) ListFields() []*ModelField {
+	return m.attr.listFields
+}
 
-
+func (m *Model) FieldIndexMap() map[string]int {
+	return m.attr.fieldIndexMap
+}
 // 查询项
-func (m *Model) CreateSearchItems(values map[string]interface{}) {
-	values = m.ParseSearchValues(values)
+func (m *Model) CreateSearchItems(searchValues map[string]interface{}) {
+	values := m.ParseSearchValues(searchValues)
 	m.SearchItems = make([]FormItem,0)
 	for _, field := range m.attr.SearchFields {
-		item := m.createFormItems(&field.ModelBaseField, values[field.Name])
+		item := m.createFormItem(&field.ModelBaseField, values[field.Name])
 		m.SearchItems = append(m.SearchItems, item)
 	}
 }
@@ -137,25 +138,23 @@ func  (m *Model) CreateEditItems(values map[string]interface{}) {
 	for i, _ := range m.attr.Fields {
 		field := m.attr.Fields[i]
 		//如果不允许编辑项（不包含PK字段）
-		if field.EditHide && field.Name != m.attr.Pk {
+		if !field.Editable {
 			continue
 		}
-		item := m.createFormItems(&field.ModelBaseField, values[field.Name])
-		if field.Name == m.attr.Pk {
-			value := cast.ToString(values[field.Name])
-			if m.attr.NotAutoInc {
-				item.Html += fmt.Sprintf(`<input type="hidden" id="__%s"  name="__%s" vlaue="%s" />`, field.Name, field.Name, value)
-			//}else {
-				//item.Html = fmt.Sprintf(`<input type="hidden" id="%s"  name="%s" vlaue="%s" /> %s`, field.Name, field.Name, value, value)
-			}
-		}
+		item := m.createFormItem(&field.ModelBaseField, values[field.Name])
+		//if field.Name == m.attr.Pk {
+		//	value := cast.ToString(values[field.Name])
+		//	if m.attr.AutoInc {
+		//		item.Html += fmt.Sprintf(`<input type="hidden" id="__%s"  name="__%s" vlaue="%s" />`, field.Name, field.Name, value)
+		//	}
+		//}
 		m.EditItems = append(m.EditItems, item)
 	}
 }
 
 // 生成单个查询或编辑项
-func (m *Model) createFormItems(field *ModelBaseField, value interface{}) FormItem {
-	var enum map[string]interface{}
+func (m *Model) createFormItem(field *ModelBaseField, value interface{}) FormItem {
+	var enum Enum
 	if value == nil && field.Default != nil {
 		value = field.Default
 	}

@@ -38,6 +38,14 @@ func ToCamelCase(str string, lower bool) string {
 	return firstString + upperStr
 }
 
+
+func iif(condition bool, trueVal, falseVal interface{}) interface{} {
+	if condition {
+		return trueVal
+	}
+	return falseVal
+}
+
 //查找元素是否在数组中
 func inArray(obj interface{}, target interface{}) bool {
 	targetValue := reflect.ValueOf(target)
@@ -60,7 +68,7 @@ func inArray(obj interface{}, target interface{}) bool {
 
 func getOffsetLimit(page int, pageSize int)(offset int, limit int){
 	if page <= 0 { page = 1}
-	if pageSize <= 0 {pageSize = option.PageSize}
+	if pageSize <= 0 {pageSize = option.DefaultPageSize}
 	limit = pageSize
 	offset = (page - 1) * pageSize
 	return

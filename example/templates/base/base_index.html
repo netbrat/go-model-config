@@ -1,7 +1,7 @@
 {{define "base/base_index.html"}}
 {{template "base/header" .}}
 <div class="admin-table-full">
-    <table class="layui-hide" id="main_table" lay-filter="main-table"></table>
+    <table class="layui-hide" id="main_table"></table>
     <!--查询栏-->
     <script type="text/html" id="main_table_search_toolbar">
         {{template  "base/search_form" .}}
@@ -9,28 +9,43 @@
     <!--工具栏-->
     <script type="text/html" id="main_table_toolbar">
         <div class="layui-btn-container">
-            <a class="layui-btn layui-btn-sm" id="mtt_add" lay-event="mtt_add" admin-href="/system/menu/add" open-type="4">添加</a>
-            <a class="layui-btn layui-btn-sm" id="mtt_edit" lay-event="mtt_edit">编辑</a>
-            <a class="layui-btn layui-btn-sm" id="mtt_del" lay-event="mtt_del">删除</a>
+            <a class="layui-btn layui-btn-sm" id="openLink_add" lay-event="openLink_add" admin-href="/system/menu/add" open-type="4">添加</a>
+            <a class="layui-btn layui-btn-sm" id="openLink_edit" lay-event="openLink_edit" admin-href="/system/menu/edit" open-type="4" param-type="2">编辑</a>
+            <a class="layui-btn layui-btn-danger layui-btn-sm" id="openLink_del" lay-event="openLink_del" admin-href="/system/menu/del" open-type="5" param-type="3" confirm="你确定要删除吗？">删除</a>
         </div>
     </script>
 </div>
 <script type="text/javascript">
-    //表格数据
-    cTableOptions = {
-        //url: '/static/user30.js',
-        where: {test:'test'},
-        //contentType: 'application/json',
-        cols: [[{"type": "checkbox", "fixed": "left"}, {"type": "numbers", "title": "\u5e8f\u53f7", "fixed": "left"}, {"field": "id", "title": "ID"}, {"field": "username", "title": "\u7528\u6237\u540d"}, {"field": "real_name", "title": "\u59d3\u540d"}, {"field": "is_super", "title": "\u8d85\u7ea7\u7ba1\u7406\u5458"}, {"field": "enable", "title": "\u542f\u7528\u72b6\u6001"}, {"field": "create_username", "title": "\u521b\u5efa\u4eba"}, {"field": "create_time", "title": "\u521b\u5efa\u65f6\u95f4"}]],
-    };
+    var cols = [[
+        {{if .Model.Attr.Checkbox}}
+        {"type": "checkbox", "fixed": "left"},
+        {{end}}
+        {{range $i, $field := .Model.ListFields}}
+        {
+            "field":"{{$field.Name}}",
+            "title": "{{$field.Title}}",
+            "align":"{{$field.Align}}",
+            "width":"{{$field.Width}}",
+            "sort":"{{$field.Sort}}",
+            "fixed": "{{$field.Fixed}}"
+            {{if $.Model.Attr.Footer}}{{if eq $field.Name $.Model.Attr.Pk}},"totalRowText":"{{$.Model.Attr.FooterText}}"{{end}}{{end}}
+        },
+        {{end}}
+    ]];
+
 
     pageCallBack = function(){
         layui.use('ctable',function(){
-            var ctable = layui.ctable;
-            ctable.render(cTableOptions);
+            layui.admin.global.tableId = "main_table"; //必须单独使用 tableId 变量单独定义，表示表格的id ,用于自动获取参数
+            layui.admin.global.pkField = "{{.Model.Attr.Pk}}"; //必须单独使用 pkField 变量单独定义，表示主键字段名，用于自动获取参数
+            layui.ctable.render({
+                id: layui.admin.global.tableId,
+                elem:"#main_table",
+                totalRow: {{.Model.Attr.Footer}},
+                cols: cols
+            }); //表格数据选项（参考layui.table文档）
         });
     };
-
 </script>
 {{template "base/footer" .}}
 {{end}}

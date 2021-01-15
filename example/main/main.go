@@ -21,19 +21,6 @@ func main(){
 
 	gin.SetMode("debug")
 
-	option := mc.Default()
-
-	option.ControllerMap = controller.ControllerMap
-	option.NotAuthActions = controller.NotAuthActions
-	option.NotAuthRedirect = "/home/index/index"
-	option.ErrorTemplate = "base/error.html"
-	option.ModelConfigsFilePath = "./mconfigs/"
-	option.WidgetTemplatePath("./widgets/")
-
-
-	_ = mc.AppendDB("default", getDB())
-
-
 	r := gin.Default()
 	r.Use(Recover)
 
@@ -45,6 +32,25 @@ func main(){
 
 	r.NoMethod(mc.HandlerAdapt)
 	r.NoRoute(mc.HandlerAdapt)
+
+
+	option := mc.Default(r) //一定要在加载模版之后，否则默认widget不会加载
+	option.ErrorTemplate = "base/error.html"
+	option.ModelConfigsFilePath = "./mconfigs/"
+	option.PageSizeName = "limit"
+	option.PageName = "page"
+
+	option.Router.ControllerMap = controller.ControllerMap
+	option.Router.NotAuthActions = controller.NotAuthActions
+	option.Router.NotAuthRedirect = "/home/index/index"
+
+	option.Response.FooterName = "totalRow"
+	option.Response.TotalName = "count"
+	option.Response.SuccessCodeValue = "0"
+
+	_ = mc.AppendDB("default", getDB())
+
+
 	r.GET("/",func(c *gin.Context){c.Redirect(302,"/home/index/index")})
 
 	err := r.Run(fmt.Sprintf("%s:%d", "0.0.0.0", 8111))
@@ -59,8 +65,9 @@ func Recover(c *gin.Context){
 		if r := recover(); r != nil {
 			var buf [4096]byte
 			n := runtime.Stack(buf[:], false)
+			fmt.Println(r)
 			fmt.Println(string(buf[:n]))
-			mc.AbortWithError(c, http.StatusInternalServerError, http.StatusInternalServerError, fmt.Errorf(fmt.Sprintf("%s",r)))
+			mc.AbortWithErrorService(c, mc.Result{HttpStatus:500, Code:"500", Message:fmt.Sprintf("%s",r)})
 		}
 	}()
 	c.Next()

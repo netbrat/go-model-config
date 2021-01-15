@@ -2,14 +2,15 @@ package mc
 
 import (
 	"fmt"
-	"net/http"
+	"net/url"
+	"strings"
 )
 
 //控制器接口
 type IController interface {
 	Initialize(*Context)
-	AbortWithSuccess(result map[string]interface{})
-	AbortWithError(httpStatus int, code int, err error)
+	AbortWithSuccess(result Result)
+	AbortWithError(result Result)
 	SaveLog()
 }
 
@@ -30,14 +31,14 @@ type Assign struct {
 	Result  map[string]interface{}
 }
 
-//结果
+
 type Result struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
-	Total   int64       `json:"total"`
-	Footer  interface{} `json:"footer"`
-	Other	interface{} `json:"other"`
+	HttpStatus int                    //响应代码
+	Code       string                 //消息代码
+	Message    string                 //消息
+	Data       interface{}            //数据体
+	ExtraData  map[string]interface{} //附加的数据
+	RenderType RenderType             //渲染方式
 }
 
 
@@ -49,7 +50,6 @@ func (ctrl *Controller) Initialize(c *Context) {
 		ctrl.LogIgnoreActions = []string{"index","export"}
 	}
 	ctrl.Assign = &Assign{Context: ctrl.Context}
-
 	ctrl.SaveLog()
 }
 
@@ -58,23 +58,67 @@ func (ctrl *Controller) SaveLog() {
 
 }
 
-//成功输出
-func (ctrl *Controller) AbortWithSuccess(result map[string]interface{}) {
-	//result := option.SuccessCallBackFunc(ctrl.Context, r)
-	ctrl.Assign.Result = result
-	ctrl.Context.Render(http.StatusOK, ctrl.Template, ctrl.Assign)
+func (ctrl *Controller) UrlValueToRequestValue(values url.Values) (searchValue map[string]interface{}){
+	searchValue = make(map[string]interface{})
+	for key, value := range values{
+		key := strings.ReplaceAll(key, "[]","")
+		if len(value)<=1 {
+			searchValue[key], _ = url.QueryUnescape(value[0])
+		}else{
+			for i, _ := range value {
+				value[i], _ = url.QueryUnescape(value[i])
+			}
+			searchValue[key] = value
+		}
+	}
+	return
+}
+
+
+
+//使用默认的结果格式输出
+func (ctrl *Controller) AbortWithSuccess(result Result){
+	//响应代码
+	httpStatus := 200
+	if result.HttpStatus != 0 {
+		httpStatus = result.HttpStatus
+	}
+	//结果
+	newResult := map[string]interface{}{
+		option.Response.CodeName: result.Code,
+		option.Response.MessageName: result.Message,
+		option.Response.DataName: result.Data,
+	}
+	//消息代码
+	if result.Code == "" {
+		newResult[option.Response.CodeName] = option.Response.SuccessCodeValue
+	}
+	//扩展数据
+	if result.ExtraData != nil{
+		for key, value := range result.ExtraData{
+			if key == option.Response.MessageName || key == option.Response.CodeName || key == option.Response.DataName {
+				continue
+			}
+			newResult[key] = value
+		}
+	}
+	ctrl.Assign.Result = newResult
+	ctrl.Context.Render(result.RenderType, httpStatus, ctrl.Template, ctrl.Assign)
 	ctrl.Context.Abort()
 }
 
-//错误输出
-func (ctrl *Controller) AbortWithError(httpStatus int, code int, err error) {
-	ctrl.Assign.Result = map[string]interface{}{
-		"code":    code,
-		"message": err.Error(),
+//错误输出（标准错误, 页面状态还是200）
+func (ctrl *Controller) AbortWithError(result Result) {
+	//消息代码
+	if result.Code == "" {
+		result.Code = option.Response.FailCodeValue
 	}
-	ctrl.Context.Render(httpStatus, option.ErrorTemplate, ctrl.Assign)
-	ctrl.Context.Abort()
+	ctrl.Template = option.ErrorTemplate
+	ctrl.AbortWithSuccess(result)
 }
+
+
+
 
 
 

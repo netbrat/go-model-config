@@ -20,6 +20,9 @@
         {{ end }}
     </form>
     <script>
-        layui.form.render(null, 'edit-form');
+        layui.use([],function(){
+            layui.admin.global.editFormId = "edit_form"; //表示编辑表单的ID
+            layui.form.render(null, 'edit-form');
+        });
     </script>
 {{end}}

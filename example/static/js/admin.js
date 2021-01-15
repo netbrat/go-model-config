@@ -6,6 +6,7 @@ layui.define(function(exports){
     var $ = layui.jquery,
         element = layui.element,
         layer = layui.layer,
+        table = layui.table,
         utils = layui.utils,
         $win = $(window),
         $body = $('body'),
@@ -29,6 +30,12 @@ layui.define(function(exports){
                 auto: true, //是否自动侧边伸缩
                 spread: true,  //当前侧边伸缩状态（默认展开)
                 isMinWin: false, //窗口大小状态
+            },
+            global:{
+                editFormId: 'edit_form',
+                searchFormId: 'search_form',
+                tableId: 'main_table',
+                pkField: 'id'
             }
         };
 
@@ -159,8 +166,13 @@ layui.define(function(exports){
      * @param width
      * @param height
      */
-    admin.openEditDialog = function(title, url, params,  width, height, editFormId){
-        editFormId = editFormId || "edit_form";
+    admin.openEditDialog = function(title, url, params,  width, height, fromId){
+        if(utils.isEmptyOrNull(fromId)){
+            fromId = admin.global.editFormId;
+        }
+        if (typeof(fromId)== 'string' && fromId.substring(0,1) !== "#") {
+            fromId = "#" + fromId
+        }
         var theForm = null;
         utils.ajax({
             url: url,
@@ -173,9 +185,9 @@ layui.define(function(exports){
                        theForm.submit();
                     },
                     success:function(){
-                        theForm = $('#' + editFormId).ajaxForm({
-                            url: url,
-                            data: params,
+                        theForm = $(fromId).ajaxForm({
+                            url: utils.setUrlParams(url, params),
+                            //data: params,
                             beforeSubmit: function(){
                                 layer.load(2);//open({type:3, content:'数据提交中，请稍候...',icon:16});
                             },
@@ -183,23 +195,25 @@ layui.define(function(exports){
                                 layer.closeAll('loading');
                             },
                             success:function(data){
-                                if(utils.isJson(data)){
-                                    data = $.parseJSON(data);
-                                    if(data.code===200){
-                                        layer.open({title:'提示信息1', content:data.msg, icon:6,
-                                            yes: function(){
+                                try {
+                                    data = utils.parseJSON(data);
+                                    if (data.code.toString() === "0") { //返回成功
+                                        layer.open({
+                                            title: '提示信息', content: data.msg, icon: 6,
+                                            yes: function () {
                                                 layer.closeAll();
+                                                try{layui.ctable.refresh();}catch (e) {} //表格存在时，刷新表格
                                             }
                                         });
-                                    }else {
-                                        layer.open({title: '提示信息', content: data.msg, icon: 5});
+                                    } else { //返回失败
+                                        layer.open({title: '出错啦', content: data.msg, icon: 5});
                                     }
-                                }else{
-                                    layer.open({title:'提示信息', content:data})
+                                }catch(e) { //非JSON格式
+                                    layer.open({title: '提示信息', content: data})
                                 }
                             },
                             error:function(){
-                                layer.open({title:'错误信息', content:'发生未知的错误', icon:5})
+                                layer.open({title:'出错啦', content:'发生未知的错误', icon:5})
                             }
                         });
                     }
@@ -212,27 +226,25 @@ layui.define(function(exports){
 
     /**
      * 打开连接
-     * 属性：
+     * HTML属性：
      * link-type, 连接类型，（1-js,0-连接(默认）
-     * open-type,打开类型（0-标签页（默认）,1-新页面,2-普通弹窗,3-编辑弹窗,4-无窗口)
+     * open-type, 打开方式(0-标签页, 1-新窗口, 2-本页面, 3-普通弹窗, 4-编辑弹窗, 5-无窗口)
      * param-type, 参数获取类型（0-无参（默认），1-表单,2-单行列表,3-多行列表)
-     * width, 弹窗宽度
-     * height, 弹窗高度
+     * width, 弹窗宽度 (只对编辑窗类型有效）
+     * height, 弹窗高度 (只对编辑窗类型有效）
      * title, 弹窗或tab标题
      * no-close, tab时是否不允许关闭 (只对标签页有效）
      * confirm, 操作前的确认提示信息
-     * edit-form-id, 编辑时对应的编辑formid (只对编辑窗类型有效）
-     * param-obj-id 参数获取对象id
-     * logo-max-width logo最大宽度 (只对导航页有效）
-     * logo-min-width logo最小宽度 (只对导航页有效）
+     * edit-form-id, 编辑时对应的编辑formid (只对编辑窗类型有效）, 默认取editFormId全局变量
+     * param-obj-id 参数获取对象id 默认取tableId 或 searchFormId全局变量
      */
     admin.openLink = function(obj){
         var othis = $(obj),
             title = othis.attr('title') || othis.text(),
             url = othis.attr('admin-href'),
             confirm = othis.attr("confirm"),
-            width = (othis.attr('width') || '600') + 'px',
-            height = (othis.attr('height') || '450') + 'px',
+            width = (othis.attr('width') || '800') + 'px',
+            height = (othis.attr('height') || '600') + 'px',
             isCancel = false;
         if (utils.isEmptyOrNull(url)) {
             layer.open({title: '提示信息', content: '无法执行该操作!<br />该操作还未定义操作路径 [admin-href] 属性'});
@@ -253,10 +265,16 @@ layui.define(function(exports){
                 paramType = othis.attr('param-type'),
                 openType = othis.attr('open-type');
             if(!utils.isEmptyOrNull(paramType)){
-                 params = getParam(paramType); //获取参数
+                 params = admin.getParam(paramType, othis.attr('param-obj-id')); //获取参数
                 if(params===false) return;
             }
-            //openType:打开方式(0-标签页, 1-新窗口, 2-本页面, 3-普通弹窗, 4-编辑弹窗, 5-无窗口)
+            //openType:打开方式(0-标签页, 1-新窗口, 2-本页面, 3-普通弹窗, 4-编辑弹窗, 5-无窗口POST)
+            console.log({
+                "openType":openType,
+                "title":title,
+                "url": url,
+                "params": params
+            });
             switch (parseInt(openType)) {
                 case 1: //新窗口
                     admin.openWin(url,params);
@@ -279,6 +297,106 @@ layui.define(function(exports){
             }
         }
     };
+
+    /**
+     * 获取参数
+     * @param paramType 参数来源类型（0-无,1-查询,2-单行列表,3-多行列表）
+     */
+    admin.getParam = function(paramType, paramObjId){
+        var param = false;
+        switch (paramType.toString()) {
+            case "1":
+                return admin.getParamByForm(paramObjId);
+            case "2":
+                return admin.getParamBySingleRow(paramObjId);
+            case "3":
+                return admin.getParamByMultiRow(paramObjId);
+            default:
+                return false;
+        }
+    };
+
+    /**
+     * 获取查询表单参数
+     * @param id 表单id
+     */
+    admin.getParamByForm = function(id){
+        id = id || admin.global.searchFormId;
+        if(utils.isEmptyOrNull(id)) {
+            id = admin.global.searchFormId;
+        }
+        if (typeof(id)== 'string' && id.substring(0,1) !== "#") {
+            id = "#" + id
+        }
+        var theForm = $(id);
+        if(theForm === undefined) {
+            layer.open({title:'提示信息', content:'查询表单未定义', icon:0});
+            return false
+        }
+        return theForm.formSerialize();
+    };
+
+
+    /**
+     * 获取表格单行参数
+     * @param id 表格id
+     */
+    admin.getParamBySingleRow = function(id) {
+        if (utils.isEmptyOrNull(admin.global.pkField)){
+            layer.open({title:'提示信息', content:'数据表格未定义PK字段', icon:0});
+            return false;
+        }
+        id = id || admin.global.tableId;
+        if(utils.isEmptyOrNull(id)){
+            layer.open({title:'提示信息', content:'数据表格未定义', icon:0});
+            return false;
+        }
+        var checkStatus = table.checkStatus(id);
+        if (checkStatus.data.length <= 0) {
+            layer.open({title:'提示信息', content:'请选择要操作的对象', icon:0});
+            return false;
+        }else if(checkStatus.data.length >=2){
+            layer.open({title:'提示信息', content:'只能选择一条记录进行操作', icon:0});
+            return false;
+        }else{
+            //param[admin.global.pkField] = checkStatus.data[0][admin.global.pkField];
+            return admin.global.pkField + "=" + checkStatus.data[0][admin.global.pkField];
+        }
+    };
+
+    /**
+     * 获取表格多行参数
+     * @param id 表格id
+     */
+    admin.getParamByMultiRow = function(id) {
+        if (utils.isEmptyOrNull(admin.global.pkField)){
+            layer.open({title:'提示信息', content:'数据表格未定义PK字段', icon:0});
+            return false;
+        }
+        id = id || admin.global.tableId;
+        if(utils.isEmptyOrNull(id)){
+            layer.open({title:'提示信息', content:'数据表格未定义', icon:0});
+            return false;
+        }
+
+        var checkStatus = table.checkStatus(id);
+        if (checkStatus.data.length <= 0) {
+            layer.open({title:'提示信息', content:'请选择要操作的对象', icon:0});
+            return false;
+        }else{
+            var ids = [];
+            for (var i=0; i<checkStatus.data.length; i++){
+                ids[i] = checkStatus.data[i][admin.global.pkField];
+            }
+            return admin.global.pkField + "=" + ids.join('&' + admin.global.pkField + '=');
+
+        }
+    };
+
+
+
+
+
 
     //---------事件定义--------------------------------------------------------------------------------------------------------
 
