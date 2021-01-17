@@ -18,6 +18,7 @@ type KvsQueryOption struct {
 	ReturnPath  bool          //当模型为树型结构时，返回的key是否使用path代替
 	NotRowAuth  bool          //是否不使用行级权限过滤条件
 	ExtraFields []string      //额外附加的查询字段
+	Order       string		  //排序
 }
 
 //数据查询选项
@@ -86,6 +87,15 @@ func (m *Model) FindKvs(qo *KvsQueryOption) (result Enum, err error){
 	//分析kvs查询条件
 	theDB := m.parseWhere(qo.DB, qo.ExtraWhere, nil, true, qo.NotRowAuth)
 
+	//排序
+	if qo.Order != ""{
+		theDB.Order(qo.Order)
+	}else if  m.attr.Kvs[qo.KvName].Order != "" {
+		theDB.Order(m.attr.Kvs[qo.KvName].Order)
+	}else if m.attr.Order != "" {
+		theDB.Order(m.attr.Order)
+	}
+
 	//查询
 	data := make([]map[string]interface{}, 0)
 	if err = theDB.Select(fields).Find(&data).Error; err !=nil {
@@ -114,6 +124,15 @@ func (m *Model) Take(qo *QueryOption) (desc map[string]interface{}, exist bool, 
 	if fields == nil || len(fields) <= 0 { return }
 	//分析查询条件
 	theDB := m.parseWhere(qo.DB, qo.ExtraWhere, qo.Values, qo.NotSearch, qo.NotRowAuth)
+
+	//排序
+	if qo.Order != ""{
+		theDB.Order(qo.Order)
+	}else if m.attr.Order != "" {
+		theDB.Order(m.attr.Order)
+	}
+
+
 	desc = make(map[string]interface{})
 	err = theDB.Select(fields).Take(&desc).Error
 	if err != nil {
@@ -138,8 +157,8 @@ func (m *Model) Find(qo *QueryOption) (desc []map[string]interface{}, footer map
 	//排序
 	if qo.Order != ""{
 		theDB.Order(qo.Order)
-	}else if m.attr.Orders != "" {
-		theDB.Order(m.attr.Orders)
+	}else if m.attr.Order != "" {
+		theDB.Order(m.attr.Order)
 	}
 
 	//分页信息
@@ -178,11 +197,11 @@ func (m *Model) CheckUnique(data map[string]interface{}, oldPkValue interface{})
 	db := m.BaseDB(true)
 	pk := m.fieldAddAlias(m.attr.Pk)
 
-	fileTitls := make([]string,0)
+	fileTitles := make([]string,0)
 
 	if oldPkValue != nil {
 		db.Where(fmt.Sprintf("%s <> ?", pk), oldPkValue)
-		fileTitls = append(fileTitls,m.attr.Fields[m.attr.fieldIndexMap[pk]].Title )
+		fileTitles = append(fileTitles,m.attr.Fields[m.attr.fieldIndexMap[pk]].Title )
 	}
 
 	where := ""
@@ -195,7 +214,7 @@ func (m *Model) CheckUnique(data map[string]interface{}, oldPkValue interface{})
 			where += fmt.Sprintf(" AND %s = ?", m.fieldAddAlias(field))
 		}
 		whereValue = append(whereValue, data[field])
-		fileTitls = append(fileTitls, m.attr.Fields[m.attr.fieldIndexMap[field]].Title)
+		fileTitles = append(fileTitles, m.attr.Fields[m.attr.fieldIndexMap[field]].Title)
 	}
 
 	//非自增PK表，检查PK字段
@@ -212,7 +231,7 @@ func (m *Model) CheckUnique(data map[string]interface{}, oldPkValue interface{})
 	if err := db.Count(&total).Error; err != nil {
 		return err.Error(), false
 	}else if total > 0{
-		return fmt.Sprintf("记录已存在：【%s】存在重复",strings.Join(fileTitls,"、")), false
+		return fmt.Sprintf("记录已存在：【%s】存在重复",strings.Join(fileTitles,"、")), false
 	}
 	return "", true
 }
@@ -333,11 +352,28 @@ func (m *Model) parseWhere(db *gorm.DB, extraWhere []interface{}, searchValues m
 			}
 			// 查询值与查询条件匹配
 			values := make([]interface{}, 0)
-			for _, v := range f.Values {
-				if v == "?" {
-					values = append(values, searchValues[f.Name])
-				} else {
-					values = append(values, strings.ReplaceAll(v, "?", cast.ToString(searchValues[f.Name])))
+			if f.Between { //范围值
+				vType := reflect.TypeOf(searchValues[f.Name]).Kind()
+				var vs []string
+				if vType == reflect.Array || vType == reflect.Slice{
+					vs = searchValues[f.Name].([]string)
+				}else{
+					vs = strings.Split(cast.ToString(searchValues[f.Name]), f.BetweenSep)
+				}
+				for i, v := range f.Values {
+					if v == "?" {
+						values = append(values, vs[i])
+					} else {
+						values = append(values, strings.ReplaceAll(v, "?", vs[i]))
+					}
+				}
+			}else { //单个值
+				for _, v := range f.Values {
+					if v == "?" {
+						values = append(values, searchValues[f.Name])
+					} else {
+						values = append(values, strings.ReplaceAll(v, "?", cast.ToString(searchValues[f.Name])))
+					}
 				}
 			}
 			theDB.Where(f.Where, values...)

@@ -2,7 +2,7 @@
  * 核心模块
  */
 
-layui.define(function(exports){
+layui.define(['jquery', 'element', 'layer','laydate','table', 'utils'],function(exports){
     var $ = layui.jquery,
         element = layui.element,
         layer = layui.layer,
@@ -12,9 +12,9 @@ layui.define(function(exports){
         $body = $('body'),
 
         //常用对象
-        ID_APP = '#admin_app', //主窗口
-        ID_TABS_HEADER = '#admin_tabs_header',
-        FILTER_TAB_TABS = 'admin-layout-tabs', //主标签页 LAY-FILTER
+        MAIN_APP = '#admin_app', //主窗口
+        TABS_HEADER = '#admin_tabs_header',
+        FILTER_TAB_TABS_ID = 'admin-layout-tabs', //主标签页 LAY-FILTER
         ELEM_TABS_LIS = '#admin_tabs_header>li', //主标签项
 
         //常用样式
@@ -24,12 +24,12 @@ layui.define(function(exports){
         admin = {
             events: {}, //事件集
             tabsPage: { //主tabs
-                index: 0, //当前选中项索引
+                index: 0 //当前选中项索引
             },
             side: { //侧边
                 auto: true, //是否自动侧边伸缩
                 spread: true,  //当前侧边伸缩状态（默认展开)
-                isMinWin: false, //窗口大小状态
+                isMinWin: false //窗口大小状态
             },
             global:{
                 editFormId: 'edit_form',
@@ -60,10 +60,10 @@ layui.define(function(exports){
 
             if (spread) {//从收缩到展开
                 $(ID_FLEXIBLE).removeClass(CSS_ICON_SPREAD).addClass(CSS_ICON_SHRINK); //伸缩按钮切换到收缩图标
-                $(ID_APP).removeClass(CSS_SIDE_SHRINK); //主窗口容器移除收缩样式
+                $(MAIN_APP).removeClass(CSS_SIDE_SHRINK); //主窗口容器移除收缩样式
             } else { //从展开到收缩
                 $(ID_FLEXIBLE).removeClass(CSS_ICON_SHRINK).addClass(CSS_ICON_SPREAD);//伸缩按钮切换到展开图标
-                $(ID_APP).addClass(CSS_SIDE_SHRINK); //主窗口容器添加收缩样式
+                $(MAIN_APP).addClass(CSS_SIDE_SHRINK); //主窗口容器添加收缩样式
             }
             admin.side.spread = !admin.side.spread; //记录伸缩状态
         }
@@ -107,7 +107,7 @@ layui.define(function(exports){
         title = title || '新标签页';
         if(!matchTo) { //添加一个标签
             admin.tabsPage.index = tabs.length;
-            element.tabAdd(FILTER_TAB_TABS,{
+            element.tabAdd(FILTER_TAB_TABS_ID,{
                 title: '<span>' + title + '</span>',
                 id: url,
                 content: '<iframe src="' + url + '" class="admin-iframe"></iframe>'
@@ -117,7 +117,7 @@ layui.define(function(exports){
             }
         }
         //定位到当前标签
-        element.tabChange(FILTER_TAB_TABS, url);
+        element.tabChange(FILTER_TAB_TABS_ID, url);
     };
 
 
@@ -162,30 +162,26 @@ layui.define(function(exports){
      * @param title
      * @param url
      * @param params
-     * @param editFormId
+     * @param formId
      * @param width
      * @param height
      */
-    admin.openEditDialog = function(title, url, params,  width, height, fromId){
-        if(utils.isEmptyOrNull(fromId)){
-            fromId = admin.global.editFormId;
-        }
-        if (typeof(fromId)== 'string' && fromId.substring(0,1) !== "#") {
-            fromId = "#" + fromId
-        }
-        var theForm = null;
+    admin.openEditDialog = function(title, url, params,  width, height, formId){
+        var form = utils.jqueryId(formId || admin.global.editFormId),
+            theForm = null;
+
         utils.ajax({
             url: url,
             type:'GET',
             data: params,
             success: function(data){
-                var index = layer.open({type:1, title:title, content: data, area: [width, height], maxmin:true, resize:true, moveOut:true,
+                layer.open({type:1, title:title, content: data, area: [width, height], maxmin:true, resize:true, moveOut:true,
                     btn:['确定','取消'],
                     yes: function(){
                        theForm.submit();
                     },
                     success:function(){
-                        theForm = $(fromId).ajaxForm({
+                        theForm = $(form).ajaxForm({
                             url: utils.setUrlParams(url, params),
                             //data: params,
                             beforeSubmit: function(){
@@ -202,7 +198,7 @@ layui.define(function(exports){
                                             title: '提示信息', content: data.msg, icon: 6,
                                             yes: function () {
                                                 layer.closeAll();
-                                                try{layui.ctable.refresh();}catch (e) {} //表格存在时，刷新表格
+                                                try{layui.fulltable.refresh();}catch (e) {} //表格存在时，刷新表格
                                             }
                                         });
                                     } else { //返回失败
@@ -239,15 +235,16 @@ layui.define(function(exports){
      * param-obj-id 参数获取对象id 默认取tableId 或 searchFormId全局变量
      */
     admin.openLink = function(obj){
-        var othis = $(obj),
-            title = othis.attr('title') || othis.text(),
-            url = othis.attr('admin-href'),
-            confirm = othis.attr("confirm"),
-            width = (othis.attr('width') || '800') + 'px',
-            height = (othis.attr('height') || '600') + 'px',
+        var objThis = $(obj),
+            title = objThis.attr('title') || objThis.text(),
+            url = objThis.attr('admin-href'),
+            confirm = objThis.attr("confirm"),
+            width = (objThis.attr('width') || '800') + 'px',
+            height = (objThis.attr('height') || '600') + 'px',
             isCancel = false;
+
         if (utils.isEmptyOrNull(url)) {
-            layer.open({title: '提示信息', content: '无法执行该操作!<br />该操作还未定义操作路径 [admin-href] 属性'});
+            layer.open({title: '提示信息', content: '无法执行该操作!\r\n该操作还未定义操作路径 [admin-href] 属性'});
         }
         if(!utils.isEmptyOrNull(confirm)){
             layer.confirm(confirm,
@@ -258,14 +255,14 @@ layui.define(function(exports){
         }
         if (isCancel) return;
 
-        if(othis.attr('link-type')==="1"){ //js
+        if(objThis.attr('link-type')==="1"){ //js
 		    eval(url);
         }else{ //链接
             var params = '',
-                paramType = othis.attr('param-type'),
-                openType = othis.attr('open-type');
+                paramType = objThis.attr('param-type'),
+                openType = objThis.attr('open-type');
             if(!utils.isEmptyOrNull(paramType)){
-                 params = admin.getParam(paramType, othis.attr('param-obj-id')); //获取参数
+                 params = admin.getParam(paramType, objThis.attr('param-obj-id')); //获取参数
                 if(params===false) return;
             }
             //openType:打开方式(0-标签页, 1-新窗口, 2-本页面, 3-普通弹窗, 4-编辑弹窗, 5-无窗口POST)
@@ -286,13 +283,13 @@ layui.define(function(exports){
                     admin.openDialog(title, url, params, width, height);
                     break;
                 case 4: //编辑弹窗
-                    admin.openEditDialog(title, url, params, width, height, othis.attr('edit-form-id'));
+                    admin.openEditDialog(title, url, params, width, height, objThis.attr('edit-form-id'));
                     break;
                 case 5: //无窗口
                     admin.openPost(url, params);
                     break;
                 default: //标签页
-                    admin.openTabsPage(title, url, params, othis.attr('no-close'));
+                    admin.openTabsPage(title, url, params, objThis.attr('no-close'));
                     break;
             }
         }
@@ -301,12 +298,12 @@ layui.define(function(exports){
     /**
      * 获取参数
      * @param paramType 参数来源类型（0-无,1-查询,2-单行列表,3-多行列表）
+     * @param paramObjId 参数来源对象id
      */
     admin.getParam = function(paramType, paramObjId){
-        var param = false;
         switch (paramType.toString()) {
             case "1":
-                return admin.getParamByForm(paramObjId);
+                return admin.getParamBySearchForm(paramObjId);
             case "2":
                 return admin.getParamBySingleRow(paramObjId);
             case "3":
@@ -318,19 +315,20 @@ layui.define(function(exports){
 
     /**
      * 获取查询表单参数
+     * @param id 查询表单id
+     */
+    admin.getParamBySearchForm = function(id){
+        return admin.getParamByForm(id || admin.global.searchFormId);
+    };
+
+    /**
+     * 获取表单参数
      * @param id 表单id
      */
     admin.getParamByForm = function(id){
-        id = id || admin.global.searchFormId;
-        if(utils.isEmptyOrNull(id)) {
-            id = admin.global.searchFormId;
-        }
-        if (typeof(id)== 'string' && id.substring(0,1) !== "#") {
-            id = "#" + id
-        }
         var theForm = $(id);
         if(theForm === undefined) {
-            layer.open({title:'提示信息', content:'查询表单未定义', icon:0});
+            layer.open({title:'提示信息', content:'参数来源表单未定义', icon:0});
             return false
         }
         return theForm.formSerialize();
@@ -342,15 +340,18 @@ layui.define(function(exports){
      * @param id 表格id
      */
     admin.getParamBySingleRow = function(id) {
+
         if (utils.isEmptyOrNull(admin.global.pkField)){
-            layer.open({title:'提示信息', content:'数据表格未定义PK字段', icon:0});
+            layer.open({title:'提示信息', content:'参数来源数据表格未定义PK字段', icon:0});
             return false;
         }
+
         id = id || admin.global.tableId;
         if(utils.isEmptyOrNull(id)){
-            layer.open({title:'提示信息', content:'数据表格未定义', icon:0});
+            layer.open({title:'提示信息', content:'参数来源数据表格未定义', icon:0});
             return false;
         }
+
         var checkStatus = table.checkStatus(id);
         if (checkStatus.data.length <= 0) {
             layer.open({title:'提示信息', content:'请选择要操作的对象', icon:0});
@@ -359,7 +360,6 @@ layui.define(function(exports){
             layer.open({title:'提示信息', content:'只能选择一条记录进行操作', icon:0});
             return false;
         }else{
-            //param[admin.global.pkField] = checkStatus.data[0][admin.global.pkField];
             return admin.global.pkField + "=" + checkStatus.data[0][admin.global.pkField];
         }
     };
@@ -370,15 +370,14 @@ layui.define(function(exports){
      */
     admin.getParamByMultiRow = function(id) {
         if (utils.isEmptyOrNull(admin.global.pkField)){
-            layer.open({title:'提示信息', content:'数据表格未定义PK字段', icon:0});
+            layer.open({title:'提示信息', content:'参数来源数据表格未定义PK字段', icon:0});
             return false;
         }
         id = id || admin.global.tableId;
         if(utils.isEmptyOrNull(id)){
-            layer.open({title:'提示信息', content:'数据表格未定义', icon:0});
+            layer.open({title:'提示信息', content:'参数来源数据表格未定义', icon:0});
             return false;
         }
-
         var checkStatus = table.checkStatus(id);
         if (checkStatus.data.length <= 0) {
             layer.open({title:'提示信息', content:'请选择要操作的对象', icon:0});
@@ -394,23 +393,41 @@ layui.define(function(exports){
     };
 
 
+    /**
+     * 渲染日期组件
+     */
+    admin.renderDate = function(container){
+        console.log($(container).html());
+        $(container).find('input[datetime-data]').each(function(){
+            var option = $(this).attr('datetime-data') || '{}';
+            console.log(option);
+            try {
+                option = eval('(' + option + ')');
+                option.elem = this;
+            }catch (e) {
+                option = {elem:this};
+            }
+            option.type = option.type || "date"; //默认使用日期类型
 
-
+            layui.laydate.render(option);
+        });
+    };
 
 
     //---------事件定义--------------------------------------------------------------------------------------------------------
 
     /**
      * 全屏事件
-     * @param othis
+     * @param objThis
      */
-    admin.events.fullScreen = function(othis){
+    admin.events.fullScreen = function(objThis){
         var CSS_SCREEN_FULL = 'layui-icon-screen-full',
             CSS_SCREEN_REST = 'layui-icon-screen-restore',
-            iconElem = othis.children("i");
+            iconElem = objThis.children("i"),
+            elem = null;
 
         if(iconElem.hasClass(CSS_SCREEN_FULL)){
-            var elem = document.body;
+            elem = document.body;
             if(elem.webkitRequestFullScreen){
                 elem.webkitRequestFullScreen();
             } else if(elem.mozRequestFullScreen) {
@@ -421,7 +438,7 @@ layui.define(function(exports){
 
             iconElem.addClass(CSS_SCREEN_REST).removeClass(CSS_SCREEN_FULL);
         } else {
-            var elem = document;
+            elem = document;
             if(elem.webkitCancelFullScreen){
                 elem.webkitCancelFullScreen();
             } else if(elem.mozCancelFullScreen) {
@@ -438,7 +455,7 @@ layui.define(function(exports){
     /**
      * 侧边伸缩事件
      */
-    admin.events.flexible = function(othis){
+    admin.events.flexible = function(objThis){
         admin.side.auto = !admin.side.spread; //当手动收缩时，则不进行自动伸缩
         admin.sideFlexible(!admin.side.spread);
     };
@@ -449,7 +466,7 @@ layui.define(function(exports){
      * @param index 当前标签页索引
      */
     admin.events.rollPage = function(type, index){
-        var tabsHeader = $(ID_TABS_HEADER),
+        var tabsHeader = $(TABS_HEADER),
             liItem = tabsHeader.children('li'),
             scrollWidth = tabsHeader.prop('scrollidth'),
             outerWidth = tabsHeader.outerWidth(),
@@ -530,9 +547,9 @@ layui.define(function(exports){
      */
     admin.events.closeThisTabs = function(){
         if(!admin.tabsPage.index) return;
-        var othis = $(ELEM_TABS_LIS).eq(admin.tabsPage.index);
-        if(othis.hasClass('admin-no-close')) return; //如果当前标签不允许关闭，则退出
-        othis.find(".layui-tab-close").trigger('click');
+        var objThis = $(ELEM_TABS_LIS).eq(admin.tabsPage.index);
+        if(objThis.hasClass('admin-no-close')) return; //如果当前标签不允许关闭，则退出
+        objThis.find(".layui-tab-close").trigger('click');
     };
 
     /**
@@ -559,7 +576,7 @@ layui.define(function(exports){
             }
         });
         $('.' + TABS_REMOVE).remove(); //将所有要移除的标签全部移除
-        $(ID_TABS_HEADER).css('left',0); //滚动到最左侧
+        $(TABS_HEADER).css('left',0); //滚动到最左侧
         //选择一个未关闭的标签
         if(type === 'all'){
             admin.tabsPage.index = noCloseNum -1;
@@ -587,9 +604,9 @@ layui.define(function(exports){
          * 范围（所有具有 admin-event 属性的对象
          */
         $body.on('click', '*[admin-event]', function () {
-            var othis = $(this),
-                attrEvent = othis.attr('admin-event');
-            admin.events[attrEvent] && admin.events[attrEvent].call(this, othis);
+            var objThis = $(this),
+                attrEvent = objThis.attr('admin-event');
+            admin.events[attrEvent] && admin.events[attrEvent].call(this, objThis);
         });
 
 
@@ -606,19 +623,19 @@ layui.define(function(exports){
         /**
          * 监听 主 tab 组件切换，同步 admin.tabsPage.index 及菜单选择
          */
-        element.on('tab(' + FILTER_TAB_TABS + ')', function (data) {
+        element.on('tab(' + FILTER_TAB_TABS_ID + ')', function (data) {
             admin.tabsPage.index = data.index;
             admin.events.rollPage('auto', data.index);
-            layid = $(ELEM_TABS_LIS).eq(admin.tabsPage.index).attr('lay-id');
+            layId = $(ELEM_TABS_LIS).eq(admin.tabsPage.index).attr('lay-id');
             $('[admin-href]').parent().removeClass('layui-this');
-            $("[admin-href='" + layid + "']").parent().addClass('layui-this')
+            $("[admin-href='" + layId + "']").parent().addClass('layui-this')
         });
 
         /**
          * 监听 tab 组件删除，同步 admin.tabsPage.index
          * layui tabs 在删除时有个bug，当删除的标签不是排在最后，则切换后的index会比实际的大1
          */
-        element.on('tabDelete(' + FILTER_TAB_TABS + ')', function (data) {
+        element.on('tabDelete(' + FILTER_TAB_TABS_ID + ')', function (data) {
             if (data.index < admin.tabsPage.index) {
                 admin.tabsPage.index -= 1;
             }
@@ -635,9 +652,9 @@ layui.define(function(exports){
          * 监听tips
          */
         $body.on('mouseenter', '*[lay-tips]', function () {
-            var othis = $(this),
-                tips = othis.attr('lay-tips');
-            layer.tips(tips, othis);
+            var objThis = $(this),
+                tips = objThis.attr('lay-tips');
+            layer.tips(tips, objThis);
         }).on('mouseleave', '*[lay-tips]', function () {
             layer.close(layer.index);
         });
@@ -651,13 +668,14 @@ layui.define(function(exports){
             admin.sideFlexible(true);
         }).on('mouseenter',function () {
             //显示tips
-            if (!$(ID_APP).hasClass('side-shrink')) return;
+            if (!$(MAIN_APP).hasClass('side-shrink')) return;
             var text = $(this).find("span").html();
-            layui.layer.tips(text, this);
+            layer.tips(text, this);
         }).on('mouseleave',function () {
             //隐藏tips
-            layui.layer.close(layer.index);
+            layer.close(layer.index);
         });
+
 
 
         /**

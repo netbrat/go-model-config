@@ -6,11 +6,11 @@
 layui.config({
     base: '/static/js/'
 }).use([
-    'jquery', 'element', 'layer', 'form','table',
-    'ajaxform','utils','admin','ctable'
+    'jquery', 'element', 'layer', 'laydate', 'form','table',
+    'ajaxform','utils','admin','fulltable'
 ], function(){
     //扩展 lib 目录下的其它模块
-    // var extend = ['ctable'];
+    // var extend = ['fulltable'];
     // layui.each(extend, function(index, item){
     //     var mods = {};
     //     mods[item] = '{/}' + '/static/js/extend/' + item;

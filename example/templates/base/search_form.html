@@ -2,31 +2,21 @@
 
 <form class="layui-form admin-search-form" id="search_form">
     <ul class="layui-form-item">
-        {{ range $key, $item := .Model.SearchItems}}
+        {{range $key, $item := .Model.SearchItems}}
         <li class="layui-inline">
             <label class="layui-form-label">{{$item.Field.Title}}</label>
             <span class="layui-input-inline">{{$item.Html | HtmlUnescaped}}</span>
         </li>
-        {{ end }}
+        {{end}}
         <li class="layui-inline">
-            <div class="layui-btn layui-btn-sm" admin-href="alert('ok1');" link-type="1" id="search_button">查询</div>
+            <div class="layui-btn layui-btn-sm" admin-href="layui.fulltable.search();" link-type="1" id="search_button">查询</div>
         </li>
     </ul>
 </form>
 <script type="text/javascript">
-    layui.use([],function() {
-        var $ = layui.jquery;
+    layui.use(['admin'],function() {
         layui.admin.global.searchFormId = "search_form"; //查询表单id
-
-        $("#search_button").on("click",function(){
-            var where = layui.utils.urlParamsToJSON($('#'+layui.admin.global.searchFormId).formSerialize());
-            console.log(layui.utils);
-            console.log(where);
-            layui.ctable.refresh({
-                where: where,
-                page:1
-            });
-        });
+        layui.admin.renderDate('#search_form');
     });
 </script>
 {{end}}

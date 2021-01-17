@@ -1,0 +1,8 @@
+{{define "widget/datetime"}}
+    <input type="text" id="{{.Field.Name}}" name="{{.Field.Name}}" value="{{.Value}}" autocomplete="off"
+           class="layui-input{{if .Field.Disabled}} layui-disabled{{end}} {{.Field.CssClass}}" style="{{.Field.CssStyle}}"
+          {{if .Field.Required}} required lay-verify="required"{{end}}{{if .Field.Disabled}} disabled {{end}}
+            datetime-data="{ {{.Field.Extra.dateOption}} }"
+    />
+{{end}}
+

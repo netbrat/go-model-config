@@ -126,7 +126,8 @@ func (m *Model) FieldIndexMap() map[string]int {
 func (m *Model) CreateSearchItems(searchValues map[string]interface{}) {
 	values := m.ParseSearchValues(searchValues)
 	m.SearchItems = make([]FormItem,0)
-	for _, field := range m.attr.SearchFields {
+	for i, _ := range m.attr.SearchFields {
+		field := m.attr.SearchFields[i]
 		item := m.createFormItem(&field.ModelBaseField, values[field.Name])
 		m.SearchItems = append(m.SearchItems, item)
 	}

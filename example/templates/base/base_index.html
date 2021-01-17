@@ -10,15 +10,16 @@
     <script type="text/html" id="main_table_toolbar">
         <div class="layui-btn-container">
             <a class="layui-btn layui-btn-sm" id="openLink_add" lay-event="openLink_add" admin-href="/system/menu/add" open-type="4">添加</a>
-            <a class="layui-btn layui-btn-sm" id="openLink_edit" lay-event="openLink_edit" admin-href="/system/menu/edit" open-type="4" param-type="2">编辑</a>
+            <a class="layui-btn layui-btn-sm" id="openLink_edit" lay-event="openLink_edit" admin-href="/system/menu/edit" open-type="4" param-type="2" default="true"->编辑</a>
             <a class="layui-btn layui-btn-danger layui-btn-sm" id="openLink_del" lay-event="openLink_del" admin-href="/system/menu/del" open-type="5" param-type="3" confirm="你确定要删除吗？">删除</a>
         </div>
     </script>
 </div>
 <script type="text/javascript">
     var cols = [[
-        {{if .Model.Attr.Checkbox}}
-        {"type": "checkbox", "fixed": "left"},
+        {"type": {{if .Model.Attr.SingleSelection}}"radio"{{else}}"checkbox"{{end}}, "fixed": "left"},
+        {{if .Model.Attr.ShowNumber}}
+        {"type": "number", "title":"序号", "fixed":"left"},
         {{end}}
         {{range $i, $field := .Model.ListFields}}
         {
@@ -35,15 +36,25 @@
 
 
     pageCallBack = function(){
-        layui.use('ctable',function(){
-            layui.admin.global.tableId = "main_table"; //必须单独使用 tableId 变量单独定义，表示表格的id ,用于自动获取参数
-            layui.admin.global.pkField = "{{.Model.Attr.Pk}}"; //必须单独使用 pkField 变量单独定义，表示主键字段名，用于自动获取参数
-            layui.ctable.render({
-                id: layui.admin.global.tableId,
+        layui.use(['jquery','admin','fulltable'],function(){
+            var $ = layui.jquery,
+                admin = layui.admin,
+                fulltable = layui.fulltable;
+
+            admin.global.tableId = "main_table"; //必须单独使用 tableId 变量单独定义，表示表格的id ,用于自动获取参数
+            admin.global.pkField = "{{.Model.Attr.Pk}}"; //必须单独使用 pkField 变量单独定义，表示主键字段名，用于自动获取参数
+            //重新定义行双击事件回调方法
+            fulltable.onRowDouble = function(obj){
+                fulltable.onlyOneSelected(obj);
+                $('.layui-table-tool-temp [default=true]').eq(0).click();
+            };
+            fulltable.render({
+                id: admin.global.tableId,
                 elem:"#main_table",
                 totalRow: {{.Model.Attr.Footer}},
                 cols: cols
             }); //表格数据选项（参考layui.table文档）
+
         });
     };
 </script>

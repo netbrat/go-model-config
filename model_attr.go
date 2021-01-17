@@ -18,6 +18,8 @@ type ModelBaseField struct {
    Required    bool                   `json:"required"`                  //是否必填字段(默认false)
    Placeholder string                 `json:"placeholder"`               //
    Disabled    bool                   `json:"disabled"`                  //是否禁止编辑 默认false，对于pk字段，会自动判断
+   Between     bool                   `json:"between"`                   // 是否两值取范围
+   BetweenSep  string                 `json:"betweenSep" default:"~"`    //两值分隔符
    Extra       map[string]interface{} `json:"extra"`                     //自定义扩展信息
 }
 
@@ -38,8 +40,8 @@ type ModelField struct {
 //查询字段配置对象
 type ModelSearchField struct {
    ModelBaseField
-   Where  string   `json:"where"`  //查询时的条件，表单传过来的值会替换此条件{{this}}字符串，如果是多选，则使用{{inThis}}
-   Values []string `json:"values"` //查询时的条件值，默认直接[]
+   Where      string   `json:"where"`    //查询时的条件
+   Values     []string `json:"values"`   //查询时的条件值，默认直接[]
 }
 
 //键值对配置对象
@@ -49,6 +51,7 @@ type ModelKv struct {
    KeySep      string   `json:"valueSep"`    // 多关键字段分隔符（默认_)
    ValueSep    string   `json:"valueSep"`    // 多值字段分隔符（默认_）
    Where       string   `json:"where"`       //查询条件（只作用此kv选择中)
+   Order       string   `json:"order"`       //排序
 }
 
 //回调js配置对象
@@ -62,31 +65,33 @@ type ModelJavascript struct {
 
 //模型配制属性
 type ModelAttr struct {
-   Name          string                       `json:"-"`
-   ConnName      string                       `json:"connName" default:"default"`   //数据库连接名			默认 default
-   DBName        string                       `json:"dbName"`                       //数据库名				默认 数据库连接配置中的数据库名
-   Checkbox      bool                         `json:"checkbox" default:"true"`      //列表显示多选框     默认 true
-   Table         string                       `json:"table"`                        //数据表名				必填
-   Alias         string                       `json:"alias"`                        //表别名 				默认 表名
-   Orders        string                       `json:"orders"`                       //默认排序				选填
-   Pk            string                       `json:"pk" default:"id"`              //主键字段名			默认 id
-   AutoInc       bool                         `json:"autoInc" default:"true"`       //主键自增长		默认 true
-   UniqueFields  []string                     `json:"uniqueFields"`                 //唯一性字段列表		选填
-   Footer        bool                         `json:"footer"`                       //是否有全计表尾
-   FooterText    string                       `json:"footerText" default:"合计"`      //表尾文本
-   Where         string                       `json:"where"`                        //基础查询条件 		默认""
-   Joins         []string                     `json:"joins"`                        //外联SQL
-   Groups        []string                     `json:"groups"`                       //分组SQL
-   IsTree        bool                         `json:"isTree"`                       //是否树型结构表		默认 false
-   TreePathBit   int                          `json:"treePathBit" default:"2"`      //树型结构路径每层位数	默认 2
-   TreePathField string                       `json:"treePathField" default:"path"` //树型结构的路径字段	默认 path
-   Fields        []ModelField                 `json:"fields"`                       //字段列表
-   SearchFields  []ModelSearchField           `json:"searchFields"`                 //查询字段列表
-   Enums         map[string]map[string]string `json:"enums"`                        //枚举列表
-   Kvs           map[string]ModelKv           `json:"kvs"`                          //键值对配置结构
-   JavaScript    ModelJavascript              `json:"javascript"`                   //回调js
-   listFields    []*ModelField                `json:"-"`                            //列表字段（过滤隐藏及权限）
-   fieldIndexMap map[string]int               `jaon:"-"`                            //字段索引map
+   Name            string                       `json:"-"`
+   ConnName        string                       `json:"connName" default:"default"`   //数据库连接名			默认 default
+   DBName          string                       `json:"dbName"`                       //数据库名				默认 数据库连接配置中的数据库名
+   Table           string                       `json:"table"`                        //数据表名				必填
+   Alias           string                       `json:"alias"`                        //表别名 				默认 表名
+   Order           string                       `json:"orders"`                       //默认排序				选填
+   Pk              string                       `json:"pk" default:"id"`              //主键字段名			默认 id
+   AutoInc         bool                         `json:"autoInc" default:"true"`       //主键自增长		默认 true
+   UniqueFields    []string                     `json:"uniqueFields"`                 //唯一性字段列表		选填
+   SingleSelection bool                         `json:"singleSelection"`              //列表是否单选     默认 false
+   ShowNumber      bool                         `json:"showNumber" default:"true"`    //列表是否显示序号 //默认 true
+   Footer          bool                         `json:"footer"`                       //是否有全计表尾
+   FooterText      string                       `json:"footerText" default:"合计"`      //表尾文本
+   Where           string                       `json:"where"`                        //基础查询条件 		默认""
+   Joins           []string                     `json:"joins"`                        //外联SQL
+   Groups          []string                     `json:"groups"`                       //分组SQL
+   IsTree          bool                         `json:"isTree"`                       //是否树型结构表		默认 false
+   TreePathBit     int                          `json:"treePathBit" default:"2"`      //树型结构路径每层位数	默认 2
+   TreePathField   string                       `json:"treePathField" default:"path"` //树型结构的路径字段	默认 path
+   Fields          []ModelField                 `json:"fields"`                       //字段列表
+   SearchFields    []ModelSearchField           `json:"searchFields"`                 //查询字段列表
+   Enums           map[string]map[string]string `json:"enums"`                        //枚举列表
+   Kvs             map[string]ModelKv           `json:"kvs"`                          //键值对配置结构
+   JavaScript      ModelJavascript              `json:"javascript"`                   //回调js
+   Extra           map[string]interface{}       `json:"extra"'`                       //扩展属性
+   listFields      []*ModelField                `json:"-"`                            //列表字段（过滤隐藏及权限）
+   fieldIndexMap   map[string]int               `jaon:"-"`                            //字段索引map
 }
 
 

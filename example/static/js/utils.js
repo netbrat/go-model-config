@@ -3,7 +3,7 @@
  * 常用函数方法
  */
 
-layui.define(function(exports){
+layui.define(['jquery'], function(exports){
     var $ = layui.jquery,
         utils = {};
     /**
@@ -105,7 +105,7 @@ layui.define(function(exports){
     /**
      * 将url参数转成json     *
      * @param params name1=value1&amp;name2=value2
-     * @return {name1:value1, name2:value2}
+     * @return { name1:value1, name2:value2 }
      */
     utils.urlParamsToJSON = function(params){
         var hash,
@@ -126,6 +126,19 @@ layui.define(function(exports){
             }
         }
         return myJson;
+    };
+
+    /**
+     * 将id字符串转成jquery的id
+     * id -> #id
+     * @param id
+     * @returns {string}
+     */
+    utils.jqueryId = function(id){
+        if (typeof(id)== 'string' && id.substring(0,1) !== "#") {
+            id = "#" + id
+        }
+        return id;
     };
 
     /**
@@ -161,7 +174,6 @@ layui.define(function(exports){
             },
             success: function(data){
                 try {
-                    console.log(data);
                     data = utils.parseJSON(data);
                     if (typeof options.successJson === "function") { //如果设置了成功json回调
                         options.successJson(data);
@@ -171,7 +183,7 @@ layui.define(function(exports){
                                 title: '提示信息', content: data.msg, icon: 6,
                                 yes: function () {
                                     layer.closeAll();
-                                    try{layui.ctable.refresh();}catch (e) {} //表格存在时，刷新表格
+                                    try{layui.fulltable.refresh();}catch (e) {} //表格存在时，刷新表格
                                 }
                             });
                         } else { //返回失败

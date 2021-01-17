@@ -33,8 +33,9 @@ type Context struct {
 	RealControllerName string     //实际使用的控制器
 	ActionName         string     //操作方法
 	ModelName          string     //模型
-	Page               int        //页码
-	PageSize           int        //记录数
+	//Page               int        //页码
+	//PageSize           int        //记录数
+	//Order				string		//排序
 	RenderType         RenderType //结果渲染类型
 	isAjax             bool       //是否ajax提交
 	//Result             interface{} //数据内容
@@ -54,13 +55,13 @@ func NewContext(c *gin.Context) (ctx *Context) {
 		RealControllerName: strings.ToLower(params[2]),
 		ActionName:         strings.ToLower(params[3]),
 		ModelName:          strings.ToLower(params[4]),
-		Page:               0,
-		PageSize:           0,
+		//Page:               0,
+		//PageSize:           0,
 		isAjax:             c.GetHeader("X-Requested-With") == "XMLHttpRequest",
 		Context:            c,
 	}
 	//页码处理
-	ctx.Page, ctx.PageSize = ctx.getPage()
+	//ctx.Page, ctx.PageSize = ctx.getPage()
 
 	return
 }
@@ -73,17 +74,27 @@ func (ctx *Context) IsAjax() bool {
 //获取分页信息
 func (ctx *Context) getPage() (page int, pageSize int) {
 	if ctx.Request.Method == "GET" {
-		page = cast.ToInt(ctx.DefaultQuery(option.PageName,"1"))
-		pageSize = cast.ToInt(ctx.DefaultQuery(option.PageSizeName,"50"))
+		page = cast.ToInt(ctx.DefaultQuery(option.Request.PageName,"1"))
+		pageSize = cast.ToInt(ctx.DefaultQuery(option.Request.PageSizeName,"50"))
 	} else {
-		page = cast.ToInt(ctx.DefaultPostForm(option.PageName,"1"))
-		pageSize = cast.ToInt(ctx.DefaultPostForm(option.PageSizeName, "50"))
+		page = cast.ToInt(ctx.DefaultPostForm(option.Request.PageName,"1"))
+		pageSize = cast.ToInt(ctx.DefaultPostForm(option.Request.PageSizeName, "50"))
 	}
 	if page < 1 {
 		page = 1
 	}
 	if pageSize < 1 {
-		pageSize = option.DefaultPageSize
+		pageSize = option.Request.PageSizeValue
+	}
+	return
+}
+
+//获取排序信息
+func (ctx *Context) getOrder() (order string) {
+	if ctx.Request.Method == "GET" {
+		order = ctx.DefaultQuery(option.Request.OrderName, "")
+	}else{
+		order = ctx.DefaultPostForm(option.Request.OrderName, "")
 	}
 	return
 }

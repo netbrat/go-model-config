@@ -37,8 +37,8 @@ func main(){
 	option := mc.Default(r) //一定要在加载模版之后，否则默认widget不会加载
 	option.ErrorTemplate = "base/error.html"
 	option.ModelConfigsFilePath = "./mconfigs/"
-	option.PageSizeName = "limit"
-	option.PageName = "page"
+	option.Request.PageSizeName = "limit"
+	option.Request.PageName = "page"
 
 	option.Router.ControllerMap = controller.ControllerMap
 	option.Router.NotAuthActions = controller.NotAuthActions

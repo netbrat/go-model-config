@@ -23,13 +23,13 @@ func (ctrl *ModelController) Index(){
         ctrl.Model.CreateSearchItems(nil)
         ctrl.AbortWithSuccess(Result{RenderType:RenderTypeHTML})
     }else if ctrl.Context.Request.Method == "POST"{
-        fmt.Println(ctrl.Context.PostForm("id"))
-        fmt.Println(ctrl.Context.Request.PostForm)
+        page, pageSize := ctrl.Context.getPage()
         //查询选项
         qo := &QueryOption{
             Values: ctrl.UrlValueToRequestValue(ctrl.Context.Request.PostForm),
-            Page:ctrl.Context.Page,
-            PageSize:ctrl.Context.PageSize,
+            Page: page,
+            PageSize:pageSize,
+            Order:ctrl.Context.getOrder(),
         }
         fmt.Println(qo.Values)
         //数据查询

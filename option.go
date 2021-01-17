@@ -9,9 +9,16 @@ type responseOption struct {
 	DataName         string     //数据项的key
 	TotalName        string     //总记录数或影响的记录数项的key
 	FooterName       string     //表尾汇总数据项的key
-	SuccessCodeValue string        //成功代码值
-	FailCodeValue    string        //失败默认代码值
+	SuccessCodeValue string     //成功代码值
+	FailCodeValue    string     //失败默认代码值
 	AjaxRenderType   RenderType //默认ajax渲染类型
+}
+
+type requestOption struct {
+	OrderName     string //排序字段  				默认值 order
+	PageName      string //前端页码参数名				默认值："page"
+	PageSizeName  string //前端页记录数参数名			默认值："limit"
+	PageSizeValue int    //默认页记录数				默认值：50
 }
 
 //路由选项
@@ -21,9 +28,9 @@ type routerOption struct {
 	ControllerMap            map[string]map[string]IController //控制器map
 	NotAuthActions           []string                          //无须登录认证的操作方法列表
 	NotAuthRedirect          string                            //未登录跳转到页面地址 		默认值 "/admin/public/login.html"
-	BaseModuleName           string                            //全局基础模块key			默认值 "base"
+	BaseModuleName           string                            //全局基础模块key				默认值 "base"
 	BaseControllerName       string                            //全局基础控制器key			默认值 "base"
-	ModuleBaseControllerName string                            //当前模块下基础控制器key	默认为 "base"
+	ModuleBaseControllerName string                            //当前模块下基础控制器key		默认为 "base"
 }
 
 
@@ -31,22 +38,17 @@ type routerOption struct {
 type Option struct {
 	engine               *gin.Engine     //
 	DefaultConnName      string          //默认数据库连接名			默认值："default"
-	DefaultPageSize      int             //默认页记录数				默认值：50
-	PageName             string          //前端页码参数名				默认值："page"
-	PageSizeName         string          //前端页记录数参数名			默认值："page_size"
 	ErrorTemplate        string          //错误页面模版				默认值 "error.html"
 	ModelConfigsFilePath string          //自定义模型配置文件存放路径	默认值："./mconfigs/"
 	Router               *routerOption   //路由选项
-	Response             *responseOption //结果map设置
-	//widgetTemplatePath   string          //小物件模版					默认值："./widget/"
+	Response             *responseOption //结果项设置
+	Request              *requestOption  //请求项设置
 }
 
 //默认选项设置
 var option = Option{
 	DefaultConnName:      "default",
-	PageName:             "page",
-	PageSizeName:         "page_size",
-	DefaultPageSize:      50,
+
 	ErrorTemplate:        "error.html",
 	ModelConfigsFilePath: "./mconfigs/",
 	//widgetTemplatePath:   "./widget/",
@@ -69,6 +71,12 @@ var option = Option{
 		TotalName:        "total",
 		FooterName:       "footer",
 		AjaxRenderType:   RenderTypeJSON,
+	},
+	Request: &requestOption{
+		PageName:      "page",
+		PageSizeName:  "limit",
+		PageSizeValue: 50,
+		OrderName:     "order",
 	},
 }
 

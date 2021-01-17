@@ -68,7 +68,7 @@ func inArray(obj interface{}, target interface{}) bool {
 
 func getOffsetLimit(page int, pageSize int)(offset int, limit int){
 	if page <= 0 { page = 1}
-	if pageSize <= 0 {pageSize = option.DefaultPageSize}
+	if pageSize <= 0 {pageSize = option.Request.PageSizeValue}
 	limit = pageSize
 	offset = (page - 1) * pageSize
 	return
