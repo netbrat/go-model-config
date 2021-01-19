@@ -8,7 +8,7 @@ import (
 
 //控制器接口
 type IController interface {
-	Initialize(*Context)
+	Initialize(c *Context, auth *Auth)
 	AbortWithSuccess(result Result)
 	AbortWithError(result Result)
 	SaveLog()
@@ -25,13 +25,16 @@ type Controller struct {
 }
 
 
+
+
+//内容分配
 type Assign struct {
 	Context *Context
 	Model   *Model
 	Result  map[string]interface{}
 }
 
-
+//结果
 type Result struct {
 	HttpStatus int                    //响应代码
 	Code       string                 //消息代码
@@ -43,8 +46,9 @@ type Result struct {
 
 
 //初始化基类
-func (ctrl *Controller) Initialize(c *Context) {
+func (ctrl *Controller) Initialize(c *Context, auth *Auth) {
 	ctrl.Context = c
+	ctrl.Auth = auth
 	ctrl.Template = fmt.Sprintf("%s/%s_%s.html", ctrl.Context.RealModuleName, ctrl.Context.RealControllerName, ctrl.Context.ActionName)
 	if ctrl.LogIgnoreActions == nil || len(ctrl.LogIgnoreActions)<=0 {
 		ctrl.LogIgnoreActions = []string{"index","export"}

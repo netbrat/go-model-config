@@ -8,12 +8,12 @@ type ModelController struct {
 }
 
 
-func (ctrl *ModelController) Initialize(c *Context) {
+func (ctrl *ModelController) Initialize(c *Context, auth *Auth) {
     if c.ModelName == "" {
         c.ModelName = fmt.Sprintf("%s_%s", c.ModuleName,c.ControllerName)
     }
-    ctrl.Controller.Initialize(c)
-    ctrl.Model = NewModel(ctrl.Context.ModelName)
+    ctrl.Controller.Initialize(c, auth)
+    ctrl.Model = NewModel(ctrl.Context.ModelName, auth)
     ctrl.Assign.Model = ctrl.Model
 }
 
@@ -31,7 +31,6 @@ func (ctrl *ModelController) Index(){
             PageSize:pageSize,
             Order:ctrl.Context.getOrder(),
         }
-        fmt.Println(qo.Values)
         //数据查询
         data, footer, total, err := ctrl.Model.Find(qo)
         if err != nil{
@@ -73,7 +72,6 @@ func (ctrl *ModelController) Save(pkValue interface{}){
             qo := &QueryOption{
                 ExtraWhere:  []interface{}{fmt.Sprintf("%s = ?", ctrl.Model.attr.Pk), pkValue},
                 NotSearch:   true,
-                NotColAuth: true,
             }
             if row, exist, err := ctrl.Model.Take(qo); err != nil{
                 ctrl.AbortWithError(Result{Message:err.Error()})

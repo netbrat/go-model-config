@@ -16,7 +16,6 @@ type KvsQueryOption struct {
 	KvName      string        //kv配置项名
 	ExtraWhere  []interface{} //额外附加的查询条件
 	ReturnPath  bool          //当模型为树型结构时，返回的key是否使用path代替
-	NotRowAuth  bool          //是否不使用行级权限过滤条件
 	ExtraFields []string      //额外附加的查询字段
 	Order       string		  //排序
 }
@@ -30,8 +29,6 @@ type QueryOption struct {
 	Order       string                 //排序
 	Page        int                    //查询页码
 	PageSize    int                    //查询记录数
-	NotRowAuth  bool                   //是否不使用行级权限过滤条件
-	NotColAuth  bool                   //是否不使用列级权限过滤
 	NotTotal    bool                   //是否不查询总记录数
 	NotSearch   bool                   //是否不使用配置查询项进行查询
 }
@@ -85,7 +82,7 @@ func (m *Model) FindKvs(qo *KvsQueryOption) (result Enum, err error){
 	}
 
 	//分析kvs查询条件
-	theDB := m.parseWhere(qo.DB, qo.ExtraWhere, nil, true, qo.NotRowAuth)
+	theDB := m.parseWhere(qo.DB, qo.ExtraWhere, nil, true)
 
 	//排序
 	if qo.Order != ""{
@@ -120,10 +117,10 @@ func (m *Model) Take(qo *QueryOption) (desc map[string]interface{}, exist bool, 
 	//检查选项
 	if qo == nil { qo = &QueryOption{} }
 	//分析查询的字段
-	fields, _ := m.parseFields(qo.ExtraFields,qo.NotColAuth)
+	fields, _ := m.parseFields(qo.ExtraFields)
 	if fields == nil || len(fields) <= 0 { return }
 	//分析查询条件
-	theDB := m.parseWhere(qo.DB, qo.ExtraWhere, qo.Values, qo.NotSearch, qo.NotRowAuth)
+	theDB := m.parseWhere(qo.DB, qo.ExtraWhere, qo.Values, qo.NotSearch)
 
 	//排序
 	if qo.Order != ""{
@@ -131,7 +128,6 @@ func (m *Model) Take(qo *QueryOption) (desc map[string]interface{}, exist bool, 
 	}else if m.attr.Order != "" {
 		theDB.Order(m.attr.Order)
 	}
-
 
 	desc = make(map[string]interface{})
 	err = theDB.Select(fields).Take(&desc).Error
@@ -149,10 +145,10 @@ func (m *Model) Find(qo *QueryOption) (desc []map[string]interface{}, footer map
 	//检查选项
 	if qo == nil { qo = &QueryOption{} }
 	//分析查询的字段
-	fields, footerFields := m.parseFields(qo.ExtraFields, qo.NotColAuth)
+	fields, footerFields := m.parseFields(qo.ExtraFields)
 	if fields == nil || len(fields) <= 0 { return }
 	//分析查询条件
-	theDB := m.parseWhere(qo.DB, qo.ExtraWhere, qo.Values, qo.NotSearch, qo.NotRowAuth)
+	theDB := m.parseWhere(qo.DB, qo.ExtraWhere, qo.Values, qo.NotSearch)
 
 	//排序
 	if qo.Order != ""{
@@ -328,8 +324,7 @@ func (m *Model) Delete(id interface{}) (total int64, err error){
 // @param extraWhere 额外的查询条件
 // @param searchValues 查询字段值
 // @param notSearch 是否使用查询字段条件
-// @param notRowAuth 是否使用行级权限进行过滤
-func (m *Model) parseWhere(db *gorm.DB, extraWhere []interface{}, searchValues map[string]interface{}, notSearch bool, notRowAuth bool) *gorm.DB{
+func (m *Model) parseWhere(db *gorm.DB, extraWhere []interface{}, searchValues map[string]interface{}, notSearch bool) *gorm.DB{
 	var theDB *gorm.DB
 	if db == nil {
 		theDB = m.NewDB()
@@ -344,11 +339,15 @@ func (m *Model) parseWhere(db *gorm.DB, extraWhere []interface{}, searchValues m
 	// 模型各查询字段
 	if !notSearch{
 		searchValues = m.ParseSearchValues(searchValues)
+		fmt.Println(searchValues)
 		for _, f := range m.attr.SearchFields {
 			// 该查询字段未带条件配置 或 未传值，跳过
-			_, ok := searchValues[f.Name]
-			if f.Where == "" || !ok {
+			if _, ok := searchValues[f.Name]; !ok{
 				continue
+			}
+			if f.Where == "" {
+				f.Where = fmt.Sprintf("%s = ?", m.fieldAddAlias(f.Name))
+				f.Values = []string {"?"}
 			}
 			// 查询值与查询条件匹配
 			values := make([]interface{}, 0)
@@ -379,43 +378,53 @@ func (m *Model) parseWhere(db *gorm.DB, extraWhere []interface{}, searchValues m
 			theDB.Where(f.Where, values...)
 		}
 	}
-	if !notRowAuth {
-
+	//受行权限控制的字段进行数据权限过滤
+	for fieldName, fromInfo := range m.attr.rowAuthFieldMap {
+		if rowAuth, isAllAuth:= m.auth.GetRowAuth(fromInfo.FromName); !isAllAuth{
+			theDB.Where(fmt.Sprintf("%s IN ?", m.fieldAddAlias(fieldName)), rowAuth)
+		}
 	}
+	//如果自身也是行权限模型，则进行本身数据权限过滤
+	if m.attr.isRowAuth{
+		if rowAuth, isAllAuth:= m.auth.GetRowAuth(m.attr.Name); !isAllAuth {
+			theDB.Where(fmt.Sprintf("%s IN ?", m.fieldAddAlias(m.attr.Pk)), rowAuth)
+		}
+	}
+
+
 	return theDB
 }
 
 //分析查询字段
 // @param	extraFields		额外附加的字段
-// @param	notColAuth		是否不使用列级权限
 // @return	fields			最终需要查询的字段名数组
 // @return	footerFields	汇总字段
-func (m *Model) parseFields(extraFields []string, notColAuth bool)(fields []string,footerFields []string){
+func (m *Model) parseFields(extraFields []string)(fields []string,footerFields []string){
 	fields = make([]string, 0)
 	footerFields = make([]string, 0)
 	//扩展字段
 	fields = append(fields, m.fieldsAddAlias(extraFields)...)
 	// 树型必备字段
 	if m.attr.IsTree {
-		treeLevelField := fmt.Sprintf("(LENGTH(%s)/%d) AS __level", m.fieldAddAlias(m.attr.TreePathField), m.attr.TreePathBit)
+		treeLevelField := fmt.Sprintf("CEILING(LENGTH(%s)/%d) AS __level", m.fieldAddAlias(m.attr.TreePathField), m.attr.TreePathBit)
 		fields = append(fields, treeLevelField)
 	}
-	for _, f := range m.attr.Fields {
-		if f.Name == "" || f.Hidden { continue } //字段名为空或隐藏字段，跳过
+	for _, field := range m.attr.listFields {
 		//基础字段
-		field := ""
-		if f.Alias == ""{
-			field = m.fieldAddAlias(f.Name)
-		} else if f.Alias != "" {
-			field = fmt.Sprintf("%s AS %s", f.Alias, f.Name)
+		fieldName := ""
+		if field.Alias == "" {
+			fieldName = m.fieldAddAlias(field.Name)
+		} else if field.Alias != "" {
+			fieldName = fmt.Sprintf("%s AS %s", field.Alias, field.Name)
 		}
-		fields = append(fields, field)
+		fields = append(fields, fieldName)
 
 		//汇总字段
-		if f.Footer != "" {
-			footerFields = append(footerFields, fmt.Sprintf("%s AS %s", f.Footer, f.Name))
+		if field.Footer != "" {
+			footerFields = append(footerFields, fmt.Sprintf("%s AS %s", field.Footer, field.Name))
 		}
 	}
+
 	return
 }
 
@@ -439,7 +448,7 @@ func (m *Model) parseKvFields(kvName string, extraFields []string) (fields []str
 	// 树型必备字段
 	if m.attr.IsTree {
 		treePathField := m.fieldAddAlias(m.attr.TreePathField)
-		treeLevelField := fmt.Sprintf("(LENGTH(%s)/%d) AS __level", treePathField, m.attr.TreePathBit)
+		treeLevelField := fmt.Sprintf("CEILING(LENGTH(%s)/%d) AS __level", treePathField, m.attr.TreePathBit)
 		fields = append(fields, treePathField, treeLevelField)
 	}
 	// 附加字段

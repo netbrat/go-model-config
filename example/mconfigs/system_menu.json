@@ -7,6 +7,7 @@
   "uniqueFields": ["path"],
   "footer": true,
   "singleSelection": false,
+  "isTree": true,
   "fields": [
     {"name":"id", "title": "编码", "fixed": "left"},
     {"name":"name","title": "名称", "required": true, "footer": "count(id)", "width": 300, "fixed": "left"},
@@ -23,11 +24,11 @@
     {"name":"confirm","title": "操作询问"},
     {"name":"enabled","title": "是否启用", "from":"yesNo", "required": true, "default":"Y", "widget": "radio"},
     {"name":"updated_at","title": "更新时间", "disabled": true},
-    {"name":"created_at","title": "创建时间", "disabled": false, "widget": "datetime","extra": {"dateOption": "type:'datetime'"}}
+    {"name":"created_at","title": "创建时间", "disabled": true, "widget": "datetime","extra": {"dateOption": "type:'datetime'"}}
   ],
   "searchFields": [
     {"name":"id","title": "菜单", "where": "id=? OR `name` LIKE ?", "values" : ["?","%?%"], "placeholder": "请输入菜单编码或名称"},
-    {"name": "created_at", "title": "创建时间", "where": "created_at BETWEEN ? AND ?", "values": ["?", "? 23:59:59"], "default":"2021-01-01 ~ 2021-12-01", "between": true, "betweenSep": "~", "widget": "datetime", "extra": {"dateOption": "type:'date',range:'~'"}}
+    {"name": "created_at", "title": "创建时间", "where": "created_at BETWEEN ? AND ?", "values": ["?", "? 23:59:59"], "default":"2021-01-01 ~ 2021-12-31", "between": true, "betweenSep": "~", "widget": "datetime", "extra": {"dateOption": "type:'date',range:'~'"}}
   ],
   "enums": {
     "yesNo": {"Y": "是", "N": "否"},

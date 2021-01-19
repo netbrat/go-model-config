@@ -2,6 +2,19 @@ package mc
 
 import "github.com/gin-gonic/gin"
 
+
+type GetAuthFunc func() *Auth
+
+func defaultGetAuth() *Auth{
+	return &Auth{}
+}
+
+//权限选项
+type authOption struct {
+	RowAuthModels []string    //行权限model列表
+	GetAuthFunc   GetAuthFunc //获取权限回调函数
+}
+
 //响应选项
 type responseOption struct {
 	CodeName         string     //代码项的key
@@ -14,6 +27,7 @@ type responseOption struct {
 	AjaxRenderType   RenderType //默认ajax渲染类型
 }
 
+//请求选项
 type requestOption struct {
 	OrderName     string //排序字段  				默认值 order
 	PageName      string //前端页码参数名				默认值："page"
@@ -36,23 +50,26 @@ type routerOption struct {
 
 //mc选项结构体
 type Option struct {
-	engine               *gin.Engine     //
-	DefaultConnName      string          //默认数据库连接名			默认值："default"
-	ErrorTemplate        string          //错误页面模版				默认值 "error.html"
-	ModelConfigsFilePath string          //自定义模型配置文件存放路径	默认值："./mconfigs/"
-	Router               *routerOption   //路由选项
-	Response             *responseOption //结果项设置
-	Request              *requestOption  //请求项设置
+	engine               *gin.Engine    //
+	DefaultConnName      string         //默认数据库连接名			默认值："default"
+	ErrorTemplate        string         //错误页面模版				默认值 "error.html"
+	ModelConfigsFilePath string         //自定义模型配置文件存放路径	默认值："./mconfigs/"
+	Router               routerOption   //路由选项
+	Response             responseOption //结果项设置
+	Request              requestOption  //请求项设置
+	Auth                 authOption     //权限项设置
 }
 
 //默认选项设置
 var option = Option{
 	DefaultConnName:      "default",
-
 	ErrorTemplate:        "error.html",
 	ModelConfigsFilePath: "./mconfigs/",
-	//widgetTemplatePath:   "./widget/",
-	Router: &routerOption{
+	Auth: authOption{
+		RowAuthModels: make([]string, 0),
+		GetAuthFunc:   defaultGetAuth,
+	},
+	Router: routerOption{
 		UrlPathSep:               "/",
 		UrlHtmlSuffix:            "html",
 		ControllerMap:            map[string]map[string]IController{},
@@ -62,7 +79,7 @@ var option = Option{
 		BaseControllerName:       "base",
 		ModuleBaseControllerName: "base",
 	},
-	Response: &responseOption{
+	Response: responseOption{
 		SuccessCodeValue: "0000",
 		FailCodeValue:    "1000",
 		CodeName:         "code",
@@ -72,7 +89,7 @@ var option = Option{
 		FooterName:       "footer",
 		AjaxRenderType:   RenderTypeJSON,
 	},
-	Request: &requestOption{
+	Request: requestOption{
 		PageName:      "page",
 		PageSizeName:  "limit",
 		PageSizeValue: 50,

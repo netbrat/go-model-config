@@ -15,7 +15,7 @@ func AbortWithErrorService(c *gin.Context, result Result){
 	}else{
 		obj = &Controller{}
 		//初始化上下文
-		obj.Initialize(NewContext(c))
+		obj.Initialize(NewContext(c), &Auth{})
 	}
 	obj.AbortWithError(result)
 }
@@ -62,7 +62,7 @@ func HandlerAdapt(c *gin.Context) {
 	//主要是为了发生异常，显示错误时再次初始化一个默认控制器
 	c.Set("IController", obj)
 	//初始化控制器
-	obj.Initialize(ctx)
+	obj.Initialize(ctx, option.Auth.GetAuthFunc())
 
 	//判断控制器内的操作方法是否存在
 	//先判断 XxxGet,XxxPost方式，再判断Xxx

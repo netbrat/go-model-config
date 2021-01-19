@@ -48,8 +48,10 @@ func main(){
 	option.Response.TotalName = "count"
 	option.Response.SuccessCodeValue = "0"
 
-	_ = mc.AppendDB("default", getDB())
+    option.Auth.RowAuthModels = controller.RowAuthModels
+	option.Auth.GetAuthFunc = func() *mc.Auth{ return &mc.Auth{IsSuper:true}}
 
+	_ = mc.AppendDB("default", getDB())
 
 	r.GET("/",func(c *gin.Context){c.Redirect(302,"/home/index/index")})
 

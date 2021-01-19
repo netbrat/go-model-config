@@ -20,3 +20,8 @@ var ControllerMap = map[string]map[string]mc.IController{
 var NotAuthActions = []string{
     "home.public.login",
 }
+
+
+var RowAuthModels = []string {
+    "system_auth",
+}
