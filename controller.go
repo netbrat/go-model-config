@@ -11,7 +11,6 @@ type IController interface {
 	Initialize(c *Context, auth *Auth)
 	AbortWithSuccess(result Result)
 	AbortWithError(result Result)
-	SaveLog()
 }
 
 
@@ -21,7 +20,6 @@ type Controller struct {
 	Template 	string
 	Auth		*Auth
 	Assign		*Assign
-	LogIgnoreActions []string	//不保存的操作方法，如["*"]表示该控制器下的所有方法全部不保存，默认["index","export"]
 }
 
 
@@ -47,15 +45,14 @@ type Result struct {
 
 //初始化基类
 func (ctrl *Controller) Initialize(c *Context, auth *Auth) {
+	//开始初始化
+	fmt.Println("I am mc.Controller")
 	ctrl.Context = c
 	ctrl.Auth = auth
 	ctrl.Template = fmt.Sprintf("%s/%s_%s.html", ctrl.Context.RealModuleName, ctrl.Context.RealControllerName, ctrl.Context.ActionName)
-	if ctrl.LogIgnoreActions == nil || len(ctrl.LogIgnoreActions)<=0 {
-		ctrl.LogIgnoreActions = []string{"index","export"}
-	}
-	ctrl.Assign = &Assign{Context: ctrl.Context}
-	ctrl.SaveLog()
+	ctrl.Assign = &Assign{Context: c}
 }
+
 
 //保存日志
 func (ctrl *Controller) SaveLog() {

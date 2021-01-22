@@ -22,7 +22,7 @@ func main(){
 	gin.SetMode("debug")
 
 	r := gin.Default()
-	r.Use(Recover)
+	//r.Use(Recover)
 
 
 	r.StaticFS("/static", http.Dir("./static"))
@@ -49,7 +49,11 @@ func main(){
 	option.Response.SuccessCodeValue = "0"
 
     option.Auth.RowAuthModels = controller.RowAuthModels
-	option.Auth.GetAuthFunc = func() *mc.Auth{ return &mc.Auth{IsSuper:true}}
+	option.Auth.GetAuthFunc = func() *mc.Auth {
+		auth := &mc.Auth{}
+		auth.Set(true, nil, nil)
+		return auth
+	}
 
 	_ = mc.AppendDB("default", getDB())
 

@@ -3,25 +3,38 @@ package mc
 
 //权限对象
 type Auth struct {
-    IsSuper bool                    //是否超级权限
-    RowsAuth map[string][]string    //行权限map {modelName1:[value1,value2,...],modelName2:[*]} ,如果全部权限，则为[*]
-    ColsAuth map[string][]string    //列权限map {modelName1:[fieldName1, fieldName2,...],modelName2:[*]} ,如果全部权限，则为[*]
+    isSuper bool                    //是否超级权限
+    rowsAuth map[string][]string    //行权限map {modelName1:[value1,value2,...],modelName2:[*]} ,如果全部权限，则为[*]
+    colsAuth map[string][]string    //列权限map {modelName1:[fieldName1, fieldName2,...],modelName2:[*]} ,如果全部权限，则为[*]
 }
+
+//是否超级管理员
+func (auth *Auth) IsSuper() bool{
+    return auth.isSuper
+}
+
+//设置权限
+func (auth *Auth) Set(isSuper bool, rowsAuth map[string][]string, colsAuth map[string][]string){
+    auth.isSuper = isSuper
+    auth.rowsAuth = rowsAuth
+    auth.colsAuth = colsAuth
+}
+
 
 //获取权限代码列表
 func (auth *Auth) getAuth(modelName string, authType string) (authCodes []string, isAllAuth bool){
     authCodes = make([]string, 0)
-    if auth.IsSuper{
+    if auth.isSuper{
         isAllAuth = true
         return
     }
-    if auth.RowsAuth == nil || auth.RowsAuth[modelName] == nil{
+    if auth.rowsAuth == nil || auth.rowsAuth[modelName] == nil{
         return
     }
     if authType == "row"{
-        authCodes = auth.RowsAuth[modelName]
+        authCodes = auth.rowsAuth[modelName]
     }else{
-        authCodes = auth.ColsAuth[modelName]
+        authCodes = auth.colsAuth[modelName]
     }
     if authCodes[0] == "*" {
         isAllAuth = true
@@ -34,7 +47,7 @@ func (auth *Auth) checkAuth(modelName string, code string, authType string) bool
     authCodes, isAllAuth := auth.getAuth(modelName, authType)
     if isAllAuth{
         return true
-    }else if inArray(code, authCodes){
+    }else if InArray(code, authCodes){
         return true
     }
     return false

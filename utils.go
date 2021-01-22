@@ -39,15 +39,8 @@ func ToCamelCase(str string, lower bool) string {
 }
 
 
-func iif(condition bool, trueVal, falseVal interface{}) interface{} {
-	if condition {
-		return trueVal
-	}
-	return falseVal
-}
-
 //查找元素是否在数组中
-func inArray(obj interface{}, target interface{}) bool {
+func InArray(obj interface{}, target interface{}) bool {
 	targetValue := reflect.ValueOf(target)
 	switch reflect.TypeOf(target).Kind() {
 	case reflect.Slice, reflect.Array:
@@ -61,7 +54,6 @@ func inArray(obj interface{}, target interface{}) bool {
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -71,6 +63,15 @@ func getOffsetLimit(page int, pageSize int)(offset int, limit int){
 	if pageSize <= 0 {pageSize = option.Request.PageSizeValue}
 	limit = pageSize
 	offset = (page - 1) * pageSize
+	return
+}
+
+//生成一串n个相同字符串组成的的字符串
+func nString(str string, n int)(s string){
+	s = ""
+	for i:=0; i<n; i++ {
+		s += str
+	}
 	return
 }
 

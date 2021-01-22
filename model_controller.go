@@ -9,6 +9,8 @@ type ModelController struct {
 
 
 func (ctrl *ModelController) Initialize(c *Context, auth *Auth) {
+    //开始初始化
+    fmt.Println("I am mc.ModelController")
     if c.ModelName == "" {
         c.ModelName = fmt.Sprintf("%s_%s", c.ModuleName,c.ControllerName)
     }
@@ -18,7 +20,7 @@ func (ctrl *ModelController) Initialize(c *Context, auth *Auth) {
 }
 
 
-func (ctrl *ModelController) Index(){
+func (ctrl *ModelController) IndexAct(){
     if ctrl.Context.Request.Method=="GET"{
         ctrl.Model.CreateSearchItems(nil)
         ctrl.AbortWithSuccess(Result{RenderType:RenderTypeHTML})
@@ -50,12 +52,12 @@ func (ctrl *ModelController) Index(){
 }
 
 
-func (ctrl *ModelController) Add(){
+func (ctrl *ModelController) AddAct(){
     ctrl.Save(nil)
 }
 
 // 编辑操作
-func (ctrl *ModelController) Edit(){
+func (ctrl *ModelController) EditAct(){
     pkValue := ctrl.Context.DefaultQuery(ctrl.Model.attr.Pk,"")
     if pkValue == ""{
         ctrl.AbortWithError(Result{Message:"请选择一条记录进行操作"})
@@ -97,7 +99,7 @@ func (ctrl *ModelController) Save(pkValue interface{}){
     }
 }
 
-func (ctrl *ModelController) Del() {
+func (ctrl *ModelController) DelAct() {
     ids := ctrl.Context.PostFormArray("id")
     if len(ids)<=0 {
         ctrl.AbortWithError(Result{Message:"请选择至少一条记录进行操作"})

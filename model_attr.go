@@ -35,7 +35,7 @@ type ModelField struct {
    Func   string `json:"func"`                  //值显示的回调
    Align  string `json:"align" default:"left"`  //列表时对齐方式
    Sort   bool   `json:"sort" default:"true"`   //列表时是否允许排序（默认false)
-   Width  int    `json:"width" default:"80"`    //显示宽度（默认80）
+   Width  int    `json:"width" default:"100"`    //显示宽度（默认100）
    Fixed  string `json:"fixed"`                 //固定
 }
 
@@ -71,37 +71,44 @@ type ModelFieldFromInfo struct {
    kvName string        //kvName
 }
 
+type ModelTree struct {
+   PathBit   int    `json:"pathBit" default:"2"`       //树型结构路径每层位数  默认 2
+   PathField string `json:"pathField" default:"path"`  //树型结构的路径字段   默认 path
+   NameField string `json:"nameField" default:"title"` //树形结构的节点名称字段 默认title
+   Indent    string `json:"indent"`                    //树型模型节点名称前根据层级加前缀字符
+}
+
+
 //模型配制属性
 type ModelAttr struct {
    Name            string                        `json:"-"`
-   ConnName        string                        `json:"connName" default:"default"`   //数据库连接名			默认 default
-   DBName          string                        `json:"dbName"`                       //数据库名				默认 数据库连接配置中的数据库名
-   Table           string                        `json:"table"`                        //数据表名				必填
-   Alias           string                        `json:"alias"`                        //表别名 				默认 表名
-   Order           string                        `json:"orders"`                       //默认排序				选填
-   Pk              string                        `json:"pk" default:"id"`              //主键字段名			默认 id
-   AutoInc         bool                          `json:"autoInc" default:"true"`       //主键自增长		默认 true
-   UniqueFields    []string                      `json:"uniqueFields"`                 //唯一性字段列表		选填
-   SingleSelection bool                          `json:"singleSelection"`              //列表是否单选     默认 false
-   ShowNumber      bool                          `json:"showNumber" default:"true"`    //列表是否显示序号 //默认 true
-   Footer          bool                          `json:"footer"`                       //是否有全计表尾
-   FooterText      string                        `json:"footerText" default:"合计"`      //表尾文本
-   Where           string                        `json:"where"`                        //基础查询条件 		默认""
-   Joins           []string                      `json:"joins"`                        //外联SQL
-   Groups          []string                      `json:"groups"`                       //分组SQL
-   IsTree          bool                          `json:"isTree"`                       //是否树型结构表		默认 false
-   TreePathBit     int                           `json:"treePathBit" default:"2"`      //树型结构路径每层位数	默认 2
-   TreePathField   string                        `json:"treePathField" default:"path"` //树型结构的路径字段	默认 path
-   Fields          []ModelField                  `json:"fields"`                       //字段列表
-   SearchFields    []ModelSearchField            `json:"searchFields"`                 //查询字段列表
-   Enums           map[string]map[string]string  `json:"enums"`                        //枚举列表
-   Kvs             map[string]ModelKv            `json:"kvs"`                          //键值对配置结构
-   JavaScript      ModelJavascript               `json:"javascript"`                   //回调js
-   Extra           map[string]interface{}        `json:"extra"`                        //扩展属性
-   listFields      []*ModelField                 `json:"-"`                            //列表字段（过滤隐藏及权限）
-   fieldIndexMap   map[string]int                `json:"-"`                            //字段索引map {fieldName1:index1,fieldName2:index2,...}
-   rowAuthFieldMap map[string]ModelFieldFromInfo `json:"-"`                            //行权限字段map {fieldName1:fromInfo1,...}
-   isRowAuth       bool                          `json:"-"`                            //模型本身是否是行权限模型
+   ConnName        string                        `json:"connName" default:"default"` //数据库连接名   默认 default
+   DBName          string                        `json:"dbName"`                     //数据库名  默认 数据库连接配置中的数据库名
+   Table           string                        `json:"table"`                      //数据表名  必填
+   Alias           string                        `json:"alias"`                      //表别名   默认 表名
+   Order           string                        `json:"orders"`                     //默认排序  选填
+   Pk              string                        `json:"pk" default:"id"`            //主键字段名 默认 id
+   AutoInc         bool                          `json:"autoInc" default:"true"`     //主键自增长 默认 true
+   UniqueFields    []string                      `json:"uniqueFields"`               //唯一性字段列表  选填
+   SingleSelection bool                          `json:"singleSelection"`            //列表是否单选   默认 false
+   HideNumber      bool                          `json:"hideNumber"`                 //列表不显示序号  默认 true
+   Footer          bool                          `json:"footer"`                     //是否有全计表尾
+   FooterText      string                        `json:"footerText" default:"合计"`    //表尾文本
+   Where           string                        `json:"where"`                      //基础查询条件   默认""
+   Joins           []string                      `json:"joins"`                      //外联SQL
+   Groups          []string                      `json:"groups"`                     //分组SQL
+   IsTree          bool                          `json:"isTree"`                     //是否树型结构表  默认 false
+   Tree            ModelTree                     `json:"tree"`                       //树形结构
+   Fields          []ModelField                  `json:"fields"`                     //字段列表
+   SearchFields    []ModelSearchField            `json:"searchFields"`               //查询字段列表
+   Enums           map[string]map[string]string  `json:"enums"`                      //枚举列表
+   Kvs             map[string]ModelKv            `json:"kvs"`                        //键值对配置结构
+   JavaScript      ModelJavascript               `json:"javascript"`                 //回调js
+   Extra           map[string]interface{}        `json:"extra"`                      //扩展属性
+   listFields      []*ModelField                 `json:"-"`                          //列表字段（过滤隐藏及权限）
+   fieldIndexMap   map[string]int                `json:"-"`                          //字段索引map {fieldName1:index1,fieldName2:index2,...}
+   rowAuthFieldMap map[string]ModelFieldFromInfo `json:"-"`                          //行权限字段map {fieldName1:fromInfo1,...}
+   isRowAuth       bool                          `json:"-"`                          //模型本身是否是行权限模型
 }
 
 
@@ -112,30 +119,32 @@ func (attr *ModelAttr) parse(auth *Auth) {
    if attr.Alias == "" { attr.Alias = attr.Table } //如果表没指定别名，就直接使用表名作别名
    if attr.Pk == "" {attr.Pk = "id"} //没有指定主键，则使用默认id
    if attr.IsTree{
-       if attr.TreePathBit <= 0 { attr.TreePathBit = 2} //没有指定树型路径分隔位数，使用默认2
-       if attr.TreePathField == "" { attr.TreePathField = "path"} //没有指定树型路径字段，使用默认path
+       if attr.Tree.PathBit <= 0 { attr.Tree.PathBit = 2} //没有指定树型路径分隔位数，使用默认2
+       if attr.Tree.PathField == "" { attr.Tree.PathField = "path"} //没有指定树型路径字段，使用默认path
    }
    // 分析列表字段的基础字段信息
    attr.listFields = make([]*ModelField,0)
    attr.fieldIndexMap = make(map[string]int)
    attr.rowAuthFieldMap = make(map[string]ModelFieldFromInfo, 0)
    colAuth, isAllAuth := auth.GetColAuth(attr.Name)
-
    //判断模型自身是否是行权限模型
-   if inArray(attr.Name, option.Auth.RowAuthModels){
+   if InArray(attr.Name, option.Auth.RowAuthModels){
       attr.isRowAuth = true
    }
    for i, _ := range attr.Fields {
       f := &attr.Fields[i]
+      if attr.IsTree{
+         f.Sort = false
+      }
       // 判断该字段是否受行权限控制
       if f.From != ""{
          fromInfo := attr.ParseFrom(f.From)
-         if fromInfo.IsKv && inArray(fromInfo.FromName, option.Auth.RowAuthModels) {
+         if fromInfo.IsKv && InArray(fromInfo.FromName, option.Auth.RowAuthModels) {
             attr.rowAuthFieldMap[f.Name] = fromInfo
          }
       }
       //判断列权限以及字段是否隐藏
-      if (isAllAuth || inArray(f.Name, colAuth)) && !attr.Fields[i].Hidden {
+      if (isAllAuth || InArray(f.Name, colAuth)) && !attr.Fields[i].Hidden {
          attr.listFields = append(attr.listFields, f)
       }
       attr.fieldIndexMap[f.Name] = i

@@ -23,6 +23,13 @@ func AbortWithErrorService(c *gin.Context, result Result){
 
 //所有入口适配器
 func HandlerAdapt(c *gin.Context) {
+
+	//初始化上下文开始回调
+	if err := option.Request.ContextInitializeStartFunc(c); err != nil{
+		AbortWithErrorService(c, Result{HttpStatus:500, Message:err.Error()})
+		return
+	}
+
 	//对post数据进行处理
 	if c.ContentType() == "multipart/form-data" {
 		_ = c.Request.ParseMultipartForm(1048576)
@@ -33,10 +40,11 @@ func HandlerAdapt(c *gin.Context) {
 
 	//初始化上下文
 	ctx := NewContext(c)
-	//判断是否需要登录验证
-	actionString := fmt.Sprintf("%s.%s.%s", ctx.ModelName, ctx.ControllerName, ctx.ActionName)
-	if !inArray(actionString, option.Router.NotAuthActions) {
-		//验证是否登录
+
+	//初始化上下文结束回调
+	if err := option.Request.ContextInitializeEndFunc(ctx); err != nil{
+		AbortWithErrorService(c, Result{HttpStatus:500, Message:err.Error()})
+		return
 	}
 
 	//从注册表中查询路由指定的控制器
@@ -59,7 +67,7 @@ func HandlerAdapt(c *gin.Context) {
 		return
 	}
 
-	//主要是为了发生异常，显示错误时再次初始化一个默认控制器
+	//主要是为了发生异常，避免显示错误时再次初始化一个默认控制器
 	c.Set("IController", obj)
 	//初始化控制器
 	obj.Initialize(ctx, option.Auth.GetAuthFunc())
@@ -67,18 +75,17 @@ func HandlerAdapt(c *gin.Context) {
 	//判断控制器内的操作方法是否存在
 	//先判断 XxxGet,XxxPost方式，再判断Xxx
 	objValue := reflect.ValueOf(obj)
-	actionName := fmt.Sprintf("%s%s", ToCamelCase(ctx.ActionName,false), ctx.Request.Method)
+	actionName := fmt.Sprintf("%s%sAct", ToCamelCase(ctx.ActionName,false), ctx.Request.Method)
 	fn := objValue.MethodByName(actionName)
 	if fn.Kind() != reflect.Func {
-		actionName = ToCamelCase(ctx.ActionName, false)
+		actionName = fmt.Sprintf("%sAct", ToCamelCase(ctx.ActionName, false))
 		fn = objValue.MethodByName(actionName)
 		if fn.Kind() != reflect.Func {
-			msg := fmt.Sprintf("未找到对应的操作方法[%s.%s.%s]", ctx.ModuleName, ctx.ControllerName, ctx.ActionName)
+			msg := fmt.Sprintf("未找到对应的操作方法[%s.%s.%s]", ctx.ModuleName, ctx.ControllerName, actionName)
 			obj.AbortWithError(Result{HttpStatus:404, Code:"404", Message:msg})
 			return
 		}
 	}
-
 	//调用操作方法
 	fn.Call(nil)
 }

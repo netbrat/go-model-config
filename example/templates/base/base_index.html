@@ -18,7 +18,7 @@
 <script type="text/javascript">
     var cols = [[
         {"type": {{if .Model.Attr.SingleSelection}}"radio"{{else}}"checkbox"{{end}}, "fixed": "left"},
-        {{if .Model.Attr.ShowNumber}}
+        {{if not .Model.Attr.HideNumber}}
         {"type": "number", "title":"序号", "fixed":"left"},
         {{end}}
         {{range $i, $field := .Model.ListFields}}
@@ -27,7 +27,7 @@
             "title": "{{$field.Title}}",
             "align":"{{$field.Align}}",
             "width":"{{$field.Width}}",
-            "sort":"{{$field.Sort}}",
+            "sort":{{$field.Sort}},
             "fixed": "{{$field.Fixed}}"
             {{if $.Model.Attr.Footer}}{{if eq $field.Name $.Model.Attr.Pk}},"totalRowText":"{{$.Model.Attr.FooterText}}"{{end}}{{end}}
         },

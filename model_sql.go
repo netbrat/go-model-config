@@ -17,20 +17,24 @@ type KvsQueryOption struct {
 	ExtraWhere  []interface{} //额外附加的查询条件
 	ReturnPath  bool          //当模型为树型结构时，返回的key是否使用path代替
 	ExtraFields []string      //额外附加的查询字段
-	Order       string		  //排序
+	Order       string        //排序
+	TreeIndent  *string       //树型模型节点名称前根据层级加前缀字符
 }
 
 //数据查询选项
 type QueryOption struct {
-	DB          *gorm.DB               //当此项为空的，使用model.db
-	ExtraWhere  []interface{}          //附加的查询条件
-	Values      map[string]interface{} //查询项的值
-	ExtraFields []string               //额外附加的查询字段
-	Order       string                 //排序
-	Page        int                    //查询页码
-	PageSize    int                    //查询记录数
-	NotTotal    bool                   //是否不查询总记录数
-	NotSearch   bool                   //是否不使用配置查询项进行查询
+	DB            *gorm.DB               //当此项为空的，使用model.db
+	ExtraWhere    []interface{}          //附加的查询条件
+	Values        map[string]interface{} //查询项的值
+	ExtraFields   []string               //额外附加的查询字段
+	Order         string                 //排序
+	Page          int                    //查询页码（仅对find有效）
+	PageSize      int                    //查询记录数 （仅对find有效）
+	NotTotal      bool                   //是否不查询总记录数 （仅对find有效）
+	NotSearch     bool                   //是否不使用配置查询项进行查询
+	NotFooter     bool                   //是否查询汇总项 （仅对find有效）
+	EnumRealValue bool                   //是否附加kv及enum字段原值 （仅对find有效）
+	TreeIndent    *string                //树型模型节点名称前根据层级加前缀字符
 }
 
 
@@ -70,7 +74,7 @@ func (m *Model) FindKvs(qo *KvsQueryOption) (result Enum, err error){
 	//检查选项
 	if qo == nil { qo = &KvsQueryOption{KvName: "default"} }
 	if qo.KvName == "" { qo.KvName = "default" }
-	if !inArray(qo.KvName, m.attr.Kvs){
+	if !InArray(qo.KvName, m.attr.Kvs){
 		err =  fmt.Errorf("配置中不存在 [%s] kv 项配置", qo.KvName)
 		return
 	}
@@ -101,11 +105,20 @@ func (m *Model) FindKvs(qo *KvsQueryOption) (result Enum, err error){
 
 	//处理结果
 	result = make(Enum)
-	for _, v := range data {
+	for i, v := range data {
 		key := cast.ToString(v["__key"])
 		//树形
 		if m.attr.IsTree  && qo.ReturnPath {
-			key = cast.ToString(v[m.attr.TreePathField])
+			key = cast.ToString(v[m.attr.Tree.PathField])
+		}
+		indent := ""
+		if qo.TreeIndent == nil{
+			indent = m.attr.Tree.Indent
+		}else{
+			indent = *qo.TreeIndent
+		}
+		if m.attr.IsTree && indent != "" { //树形名称字段加前缀
+			data[i]["__value"] = nString(indent, cast.ToInt(data[i]["__level"])-1) + cast.ToString(data[i]["__value"])
 		}
 		result[key] = v
 	}
@@ -173,13 +186,13 @@ func (m *Model) Find(qo *QueryOption) (desc []map[string]interface{}, footer map
 		return
 	}
 	//汇总
-	if footerFields != nil && len(footerFields) > 0 {
+	if !qo.NotFooter && footerFields != nil && len(footerFields) > 0 {
 		footer = make(map[string]interface{})
 		if err = theDB.Select(footerFields).Offset(0).Limit(1).Take(&footer).Error; err != nil{
 			return
 		}
 	}
-	err = m.processData(desc)
+	err = m.processData(desc, qo.EnumRealValue, qo.TreeIndent)
 	return
 }
 
@@ -406,8 +419,7 @@ func (m *Model) parseFields(extraFields []string)(fields []string,footerFields [
 	fields = append(fields, m.fieldsAddAlias(extraFields)...)
 	// 树型必备字段
 	if m.attr.IsTree {
-		treeLevelField := fmt.Sprintf("CEILING(LENGTH(%s)/%d) AS __level", m.fieldAddAlias(m.attr.TreePathField), m.attr.TreePathBit)
-		fields = append(fields, treeLevelField)
+		fields = append(fields, m.parseTreeExtraField()...)
 	}
 	for _, field := range m.attr.listFields {
 		//基础字段
@@ -441,15 +453,14 @@ func (m *Model) parseKvFields(kvName string, extraFields []string) (fields []str
 	}
 	keySep := fmt.Sprintf(",'%s',", kv.KeySep)
 	valueSep := fmt.Sprintf(",'%s',", kv.ValueSep)
-	keyField := fmt.Sprintf("CONCAT(%s) AS __key", strings.Join(m.fieldsAddAlias(kv.KeyFields), keySep))
-	ValueField := fmt.Sprintf("CONCAT(%s) AS __value", strings.Join(m.fieldsAddAlias(kv.ValueFields), valueSep))
+	keyField := fmt.Sprintf("CONCAT(%s) AS `__key`", strings.Join(m.fieldsAddAlias(kv.KeyFields), keySep))
+	ValueField := fmt.Sprintf("CONCAT(%s) AS `__value`", strings.Join(m.fieldsAddAlias(kv.ValueFields), valueSep))
 	fields = append(fields, keyField, ValueField)
 
 	// 树型必备字段
 	if m.attr.IsTree {
-		treePathField := m.fieldAddAlias(m.attr.TreePathField)
-		treeLevelField := fmt.Sprintf("CEILING(LENGTH(%s)/%d) AS __level", treePathField, m.attr.TreePathBit)
-		fields = append(fields, treePathField, treeLevelField)
+		treePathField := m.fieldAddAlias(m.attr.Tree.PathField)
+		fields = append(append(fields, treePathField), m.parseTreeExtraField()...)
 	}
 	// 附加字段
 	if extraFields != nil {
@@ -464,7 +475,7 @@ func (m *Model) fieldAddAlias(field string) string{
 	if strings.Contains(field, ".") || strings.Contains(field,"(") {
 		return field
 	}else{
-		return fmt.Sprintf("`%s`.%s", m.attr.Alias, strings.Trim(field, " "))
+		return fmt.Sprintf("`%s`.`%s`", m.attr.Alias, strings.Trim(field, " "))
 	}
 }
 
@@ -476,7 +487,7 @@ func (m *Model) fieldsAddAlias(fields []string) []string{
 		if strings.Contains(v, ".") || strings.Contains(v,"(") {
 			newFields = append(newFields, v)
 		} else {
-			newFields = append(newFields, fmt.Sprintf("`%s`.%s", m.attr.Alias,  strings.Trim(v," ")))
+			newFields = append(newFields, fmt.Sprintf("`%s`.`%s`", m.attr.Alias,  strings.Trim(v," ")))
 		}
 	}
 	return newFields
@@ -484,7 +495,7 @@ func (m *Model) fieldsAddAlias(fields []string) []string{
 
 
 // 对查询的数据进行处理
-func (m *Model) processData(data []map[string]interface{})(err error){
+func (m *Model) processData(data []map[string]interface{}, enumRealValue bool, treeIndent *string)(err error){
 	if data == nil || len(data) <= 0 { return }
 	for _, f := range m.attr.Fields {
 		if _, ok := data[0][f.Name]; !ok {
@@ -493,6 +504,9 @@ func (m *Model) processData(data []map[string]interface{})(err error){
 		if f.From != "" {
 			enum := m.GetFromDataMap(f.From)
 			for i, _:= range data {
+				if enumRealValue{ //enum真实值
+					data[i]["__"+ f.Name] = data[i][f.Name]
+				}
 				vString := cast.ToString(data[i][f.Name]) //字段值
 				if f.Multiple{ //多选
 					vs := strings.Split(vString, f.Separator)
@@ -507,5 +521,35 @@ func (m *Model) processData(data []map[string]interface{})(err error){
 			}
 		}
 	}
+	indent := ""
+	if treeIndent == nil {
+		indent = m.attr.Tree.Indent
+	}else{
+		indent = *treeIndent
+	}
+	if m.attr.IsTree && indent != ""{ //树形名称字段加前缀
+		for i, _ := range data {
+			data[i][m.attr.Tree.NameField] = nString(indent, cast.ToInt(data[i]["__level"])-1) + cast.ToString(data[i][m.attr.Tree.NameField])
+		}
+	}
+	return
+}
+
+
+// 分析树形结构查询必须的扩展字段
+func (m *Model) parseTreeExtraField() (field []string) {
+	pathField := m.fieldAddAlias(m.attr.Tree.PathField)
+	__pathField := fmt.Sprintf("`__%s`.`%s`", m.attr.Table, m.attr.Tree.PathField)
+	__pkField := fmt.Sprintf("`__%s`.`%s`", m.attr.Table, m.attr.Pk)
+
+	field = make([]string, 3)
+	//层级字段
+	field[0] = fmt.Sprintf("CEILING(LENGTH(%s)/%d) AS `__level`", pathField, m.attr.Tree.PathBit)
+	//父节点字段
+	field[1] = fmt.Sprintf("(SELECT %s FROM `%s` AS `__%s` WHERE %s=LEFT(%s, LENGTH(%s)-%d) LIMIT 1) AS `__parent`",
+		__pkField, m.attr.Table, m.attr.Table, __pathField, pathField, pathField, m.attr.Tree.PathBit)
+	//字节点数字段
+	field[2] = fmt.Sprintf("(SELECT count(%s) FROM `%s` AS `__%s` WHERE %s=LEFT(%s, LENGTH(%s)-%d) LIMIT 1) AS `__child_count`",
+		__pkField, m.attr.Table, m.attr.Table, pathField, __pathField, __pathField, m.attr.Tree.PathBit)
 	return
 }

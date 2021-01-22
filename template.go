@@ -21,6 +21,9 @@ var defaultWidgetsTemplate map[string]string = map[string]string{
 var TemplateFuncMap = template.FuncMap{
     "HtmlUnescaped":HtmlUnescaped,
     "string": HtmlString,
+    "int": HtmlInt,
+    "float": HtmlFloat,
+    "bool": htmlBool,
 }
 
 var globalTemplate render.HTML
@@ -41,6 +44,19 @@ func HtmlString(x interface{}) string{
     return cast.ToString(x)
 }
 
+func HtmlInt(x interface{}) int{
+    return cast.ToInt(x)
+}
+
+func HtmlFloat(x interface{}) float32{
+    return cast.ToFloat32(x)
+}
+
+func htmlBool(x interface{}) bool {
+    return cast.ToBool(x)
+}
+
+
 
 // 初始化所有 widget 模版
 func initWidgets() {
@@ -50,7 +66,7 @@ func initWidgets() {
         tmplNames = append(tmplNames,templ.Name())
     }
     for key, content := range defaultWidgetsTemplate {
-        if !inArray(key,tmplNames){
+        if !InArray(key,tmplNames){
             _, err := globalTemplate.Template.New(key).Funcs(option.engine.FuncMap).Parse(content)
             if err != nil {
                 panic(fmt.Errorf("默认模版[%]解析失败：%s", key,err))
