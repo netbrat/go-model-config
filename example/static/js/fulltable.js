@@ -315,7 +315,6 @@ layui.define(['table','utils','admin'],function(exports) {
      * 监听复选框
      */
     table.on('checkbox', function (obj) {
-        console.log(obj);
         var trs = obj.type === 'all' ? $('.layui-table-body').find('tr') : obj.tr;
         if (obj.checked){
             trs.addClass('layui-table-click');

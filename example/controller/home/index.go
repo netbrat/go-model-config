@@ -9,9 +9,9 @@ type IndexController struct {
 }
 
 func (ctrl *IndexController) IndexAct(){
-    ctrl.AbortWithSuccess(mc.Result{})
+    ctrl.AbortWithSuccess(nil)
 }
 
 func(ctrl *IndexController) HomeAct(){
-    ctrl.AbortWithSuccess(mc.Result{})
+    ctrl.AbortWithSuccess(nil)
 }

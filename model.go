@@ -13,34 +13,34 @@ type FormItem struct {
 	Html string
 }
 
-type Enum map[string]map[string]interface{} //Enum 或kvs集
+type Kvs map[string]map[string]interface{} //Enum 或kvs集
 
 //模型结构体
 type Model struct {
-	db   *gorm.DB
-	attr *ModelAttr
-	auth *Auth
+	db          *gorm.DB
+	attr        *ModelAttr
+	//auth        *ModelAuth
 	searchItems []FormItem
-	editItems	[]FormItem
+	editItems   []FormItem
 }
 
 
 // 新建一个自定义配制模型
 // @param configs  配制名
-func NewModel(config string, auth *Auth) (m *Model) {
+func NewModel(config string) (m *Model) {
 	attr := &ModelAttr{}
 	if strings.Contains(config, "{") {
-		if err := djson.Unmarshal(config, attr, nil); err != nil{
+		if err := djson.Unmarshal(config, attr, nil); err != nil {
 			panic(fmt.Errorf(fmt.Sprintf("解析模型配置出错：%s", err.Error())))
 		}
 	} else {
-		file := fmt.Sprintf("%s%s.json",option.ModelConfigsFilePath, config)
+		file := fmt.Sprintf("%s%s.json", option.ModelConfigsFilePath, config)
 		if err := djson.FileUnmarshal(file, attr, nil); err != nil {
 			panic(fmt.Errorf(fmt.Sprintf("读取模型配置[%s]信息出错：%s", config, err.Error())))
 		}
 		attr.Name = config
 	}
-	m = &Model{auth:auth, attr:attr}
+	m = &Model{attr: attr}
 	return m.SetAttr(m.attr)
 }
 
@@ -61,8 +61,8 @@ func (m *Model) EditItems() []FormItem{
 }
 
 // 设置配置属性
-func (m *Model) SetAttr(attr *ModelAttr) *Model{
-	attr.parse(m.auth)
+func (m *Model) SetAttr(attr *ModelAttr) *Model {
+	attr.parse()
 	//m.attr = attr
 
 	//创建一个连接并附加模型基础条件信息
@@ -74,14 +74,14 @@ func (m *Model) SetAttr(attr *ModelAttr) *Model{
 		m.db.Joins(strings.Join(attr.Joins, " "))
 	}
 	if m.attr.Groups != nil || len(m.attr.Groups) > 0 {
-		m.db.Group(strings.Join(m.fieldsAddAlias(attr.Groups), ","))
+		m.db.Group(strings.Join(m.FieldsAddAlias(attr.Groups), ","))
 	}
 	//m.db.Order(strings.Join(m.fieldsAddAlias(attr.Orders), ","))
 	return m
 }
 
 // 分析查询项的值，某项不存在，侧使用配置默认值替代
-func (m *Model) ParseSearchValues(searchValues map[string]interface{}) (values map[string]interface{}){
+func (m *Model) ParseSearchValues(searchValues map[string]interface{}) (values map[string]interface{}) {
 	values = make(map[string]interface{})
 	//过滤掉空值
 	for key, value := range searchValues {
@@ -99,8 +99,8 @@ func (m *Model) ParseSearchValues(searchValues map[string]interface{}) (values m
 }
 
 // 获取From来源数据
-func (m *Model) GetFromDataMap (from string) (enum Enum){
-	enum = make(Enum)
+func (m *Model) GetFromKvs (from string) (kvs Kvs){
+	kvs = make(Kvs)
 	if from == "" {return}
 	fromInfo := m.attr.ParseFrom(from)
 	if fromInfo.IsKv {
@@ -108,12 +108,12 @@ func (m *Model) GetFromDataMap (from string) (enum Enum){
 		if fromInfo.FromName == m.attr.Name || fromInfo.FromName == "" {
 			newM = m
 		}else{
-			newM = NewModel(fromInfo.FromName, m.auth)
+			newM = NewModel(fromInfo.FromName)
 		}
-		enum, _ = newM.FindKvs(&KvsQueryOption{KvName:fromInfo.kvName})
+		kvs, _ = newM.FindKvs(&KvsQueryOption{KvName:fromInfo.kvName})
 	}else {
 		for key, value := range m.attr.Enums[fromInfo.FromName]{
-			enum[key] = map[string]interface{}{
+			kvs[key] = map[string]interface{}{
 				"__key" : key,
 				"__value": value,
 			}
@@ -135,18 +135,18 @@ func (m *Model) FieldIndexMap() map[string]int {
 }
 
 // 获取行权限字段信息map
-func (m *Model) rowAuthFieldMap() map[string]ModelFieldFromInfo{
+func (m *Model) RowAuthFieldMap() map[string]ModelFieldFromInfo {
 	return m.attr.rowAuthFieldMap
 }
 
-func (m *Model) IsRowAuth() bool{
+func (m *Model) IsRowAuth() bool {
 	return m.attr.isRowAuth
 }
 
 // 创建查询项
 func (m *Model) CreateSearchItems(searchValues map[string]interface{}) {
 	values := m.ParseSearchValues(searchValues)
-	m.searchItems = make([]FormItem,0)
+	m.searchItems = make([]FormItem, 0)
 	for i, _ := range m.attr.SearchFields {
 		field := m.attr.SearchFields[i]
 		item := m.createFormItem(&field.ModelBaseField, values[field.Name])
@@ -156,7 +156,7 @@ func (m *Model) CreateSearchItems(searchValues map[string]interface{}) {
 
 // 创建编辑项
 func  (m *Model) CreateEditItems(values map[string]interface{}) {
-	m.editItems = make([]FormItem,0)
+	m.editItems = make([]FormItem, 0)
 	for i, _ := range m.attr.Fields {
 		field := m.attr.Fields[i]
 		//如果不允许编辑项（不包含PK字段）
@@ -170,19 +170,21 @@ func  (m *Model) CreateEditItems(values map[string]interface{}) {
 
 // 生成单个查询或编辑项
 func (m *Model) createFormItem(field *ModelBaseField, value interface{}) FormItem {
-	var enum Enum
+	var kvs Kvs
 	if value == nil && field.Default != nil {
 		value = field.Default
 	}
 	// 如果字段是enum或kv，则选读取对应的enum
 	if field.From == "" {
-		enum = nil
+		kvs = nil
 	} else {
-		enum = m.GetFromDataMap(field.From)
+		kvs = m.GetFromKvs(field.From)
 	}
 	item := FormItem{
 		Field: field,
-		Html:  CreateWidget(field, value, enum),
+		Html:  CreateWidget(field, value, kvs),
 	}
 	return item
 }
+
+

@@ -236,42 +236,44 @@ layui.define(['jquery', 'element', 'layer','laydate','table', 'utils'],function(
      */
     admin.openLink = function(obj){
         var objThis = $(obj),
-            title = objThis.attr('title') || objThis.text(),
             url = objThis.attr('admin-href'),
             confirm = objThis.attr("confirm"),
-            width = (objThis.attr('width') || '800') + 'px',
-            height = (objThis.attr('height') || '600') + 'px',
-            isCancel = false;
+            isLock = false;
 
         if (utils.isEmptyOrNull(url)) {
             layer.open({title: '提示信息', content: '无法执行该操作!\r\n该操作还未定义操作路径 [admin-href] 属性'});
+            return
         }
         if(!utils.isEmptyOrNull(confirm)){
             layer.confirm(confirm,
                 {btn:['确定','取消']},
-                function(){isCancel=false;},
-                function(){isCancel=true;}
+                function(){
+                    if (!isLock){
+                        openLinkDo(url, objThis);
+                        isLock = true;
+                    }
+                }
             );
+        }else{
+            openLinkDo(url, objThis);
         }
-        if (isCancel) return;
+    };
+
+    var openLinkDo = function(url, objThis){
+        var title = objThis.attr('title') || objThis.text(),
+            confirm = objThis.attr("confirm"),
+            width = (objThis.attr('width') || '800') + 'px',
+            height = (objThis.attr('height') || '600') + 'px';
 
         if(objThis.attr('link-type')==="1"){ //js
-		    eval(url);
+            eval(url);
         }else{ //链接
             var params = '',
                 paramType = objThis.attr('param-type'),
                 openType = objThis.attr('open-type');
             if(!utils.isEmptyOrNull(paramType)){
-                 params = admin.getParam(paramType, objThis.attr('param-obj-id')); //获取参数
-                if(params===false) return;
+                params = admin.getParam(paramType, objThis.attr('param-obj-id')); //获取参数
             }
-            //openType:打开方式(0-标签页, 1-新窗口, 2-本页面, 3-普通弹窗, 4-编辑弹窗, 5-无窗口POST)
-            console.log({
-                "openType":openType,
-                "title":title,
-                "url": url,
-                "params": params
-            });
             switch (parseInt(openType)) {
                 case 1: //新窗口
                     admin.openWin(url,params);
@@ -309,7 +311,7 @@ layui.define(['jquery', 'element', 'layer','laydate','table', 'utils'],function(
             case "3":
                 return admin.getParamByMultiRow(paramObjId);
             default:
-                return false;
+                return "";
         }
     };
 
@@ -397,10 +399,8 @@ layui.define(['jquery', 'element', 'layer','laydate','table', 'utils'],function(
      * 渲染日期组件
      */
     admin.renderDate = function(container){
-        console.log($(container).html());
         $(container).find('input[datetime-data]').each(function(){
             var option = $(this).attr('datetime-data') || '{}';
-            console.log(option);
             try {
                 option = eval('(' + option + ')');
                 option.elem = this;

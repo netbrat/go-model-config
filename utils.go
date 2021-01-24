@@ -1,6 +1,7 @@
 package mc
 
 import (
+	"github.com/spf13/cast"
 	"reflect"
 	"strings"
 )
@@ -58,20 +59,49 @@ func InArray(obj interface{}, target interface{}) bool {
 }
 
 
-func getOffsetLimit(page int, pageSize int)(offset int, limit int){
-	if page <= 0 { page = 1}
-	if pageSize <= 0 {pageSize = option.Request.PageSizeValue}
+func getOffsetLimit(page int, pageSize int)(offset int, limit int) {
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = option.Request.PageSizeValue
+	}
 	limit = pageSize
 	offset = (page - 1) * pageSize
 	return
 }
 
 //生成一串n个相同字符串组成的的字符串
-func nString(str string, n int)(s string){
+func nString(str string, n int)(s string) {
 	s = ""
-	for i:=0; i<n; i++ {
+	for i := 0; i < n; i++ {
 		s += str
 	}
 	return
 }
 
+
+func ToTreeMap(source []map[string]interface{}, keyName string) (desc map[string]interface{}) {
+	desc = toTreeMap(source, keyName, 0, "")
+	return
+}
+
+
+func toTreeMap(source []map[string]interface{}, keyName string, startIndex int, parent string) (desc map[string]interface{}){
+	desc = make(map[string]interface{})
+	for i := startIndex; i < len(source); i++ {
+		nodeChildCount := cast.ToInt(source[i]["__child_count"])
+		nodeParent := cast.ToString(source[i]["__parent"])
+		nodeKey := cast.ToString(source[i][keyName])
+		if nodeParent == parent {
+			newNode := source[i]
+			if nodeChildCount > 0 {
+				newNode["__children"] = toTreeMap(source, keyName, i+1, nodeKey)
+			}else{
+				newNode["__children"] = nil
+			}
+			desc[nodeKey] = newNode
+		}
+	}
+	return
+}

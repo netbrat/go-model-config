@@ -23,6 +23,20 @@ const (
 	RenderTypeString		RenderType	= "STRING"
 )
 
+//结果体，当做为错误panic
+type Result struct {
+	HttpStatus int                    //响应代码
+	Code       string                 //消息代码
+	Message    string                 //消息
+	Data       interface{}            //数据体
+	ExtraData  map[string]interface{} //附加的数据
+	RenderType RenderType             //渲染方式
+}
+
+
+func (result *Result) Error() string {
+	return result.Message
+}
 
 
 //上下文
@@ -33,12 +47,8 @@ type Context struct {
 	RealControllerName string     //实际使用的控制器
 	ActionName         string     //操作方法
 	ModelName          string     //模型
-	//Page               int        //页码
-	//PageSize           int        //记录数
-	//Order				string		//排序
 	RenderType         RenderType //结果渲染类型
 	isAjax             bool       //是否ajax提交
-	//Result             interface{} //数据内容
 	*gin.Context
 }
 
@@ -55,13 +65,9 @@ func NewContext(c *gin.Context) (ctx *Context) {
 		RealControllerName: strings.ToLower(params[2]),
 		ActionName:         strings.ToLower(params[3]),
 		ModelName:          strings.ToLower(params[4]),
-		//Page:               0,
-		//PageSize:           0,
 		isAjax:             c.GetHeader("X-Requested-With") == "XMLHttpRequest",
 		Context:            c,
 	}
-	//页码处理
-	//ctx.Page, ctx.PageSize = ctx.getPage()
 
 	return
 }
@@ -74,10 +80,10 @@ func (ctx *Context) IsAjax() bool {
 //获取分页信息
 func (ctx *Context) getPage() (page int, pageSize int) {
 	if ctx.Request.Method == "GET" {
-		page = cast.ToInt(ctx.DefaultQuery(option.Request.PageName,"1"))
-		pageSize = cast.ToInt(ctx.DefaultQuery(option.Request.PageSizeName,"50"))
+		page = cast.ToInt(ctx.DefaultQuery(option.Request.PageName, "1"))
+		pageSize = cast.ToInt(ctx.DefaultQuery(option.Request.PageSizeName, "50"))
 	} else {
-		page = cast.ToInt(ctx.DefaultPostForm(option.Request.PageName,"1"))
+		page = cast.ToInt(ctx.DefaultPostForm(option.Request.PageName, "1"))
 		pageSize = cast.ToInt(ctx.DefaultPostForm(option.Request.PageSizeName, "50"))
 	}
 	if page < 1 {
@@ -93,7 +99,7 @@ func (ctx *Context) getPage() (page int, pageSize int) {
 func (ctx *Context) getOrder() (order string) {
 	if ctx.Request.Method == "GET" {
 		order = ctx.DefaultQuery(option.Request.OrderName, "")
-	}else{
+	} else {
 		order = ctx.DefaultPostForm(option.Request.OrderName, "")
 	}
 	return
@@ -108,6 +114,7 @@ func (ctx *Context) Render(renderType RenderType, httpStatus int, template strin
 			renderType = ctx.RenderType
 		}
 	}
+
 	switch renderType {
 	case RenderTypeAsciiJSON:
 		ctx.AsciiJSON(httpStatus, assign.Result)

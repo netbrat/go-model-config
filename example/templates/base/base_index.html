@@ -29,7 +29,7 @@
             "width":"{{$field.Width}}",
             "sort":{{$field.Sort}},
             "fixed": "{{$field.Fixed}}"
-            {{if $.Model.Attr.Footer}}{{if eq $field.Name $.Model.Attr.Pk}},"totalRowText":"{{$.Model.Attr.FooterText}}"{{end}}{{end}}
+            {{if $.Model.Attr.Foot}}{{if eq $field.Name $.Model.Attr.Pk}},"totalRowText":"{{$.Model.Attr.FootText}}"{{end}}{{end}}
         },
         {{end}}
     ]];
@@ -51,7 +51,7 @@
             fulltable.render({
                 id: admin.global.tableId,
                 elem:"#main_table",
-                totalRow: {{.Model.Attr.Footer}},
+                totalRow: {{.Model.Attr.Foot}},
                 cols: cols
             }); //表格数据选项（参考layui.table文档）
 
