@@ -73,13 +73,13 @@ func HandlerAdapt(c *gin.Context) {
 	//判断控制器内的操作方法是否存在
 	//先判断 XxxGet,XxxPost方式，再判断Xxx
 	objValue := reflect.ValueOf(obj)
-	actionName := fmt.Sprintf("%s%sAct", ToCamelCase(ctx.ActionName, false), ctx.Request.Method)
+	actionName := fmt.Sprintf("%s%sAct", CaseToUpperCamel(ctx.ActionName), ctx.Request.Method)
 	fn := objValue.MethodByName(actionName)
 	if fn.Kind() != reflect.Func {
-		actionName = fmt.Sprintf("%sAct", ToCamelCase(ctx.ActionName, false))
+		actionName = fmt.Sprintf("%sAct", CaseToUpperCamel(ctx.ActionName))
 		fn = objValue.MethodByName(actionName)
 		if fn.Kind() != reflect.Func {
-			msg := fmt.Sprintf("未找到对应的操作方法[%s.%s.%s]", ctx.ModuleName, ctx.ControllerName, actionName)
+			msg := fmt.Sprintf("未找到对应的操作方法[%s.%s.%s]", ctx.ModuleName, ctx.ControllerName, ctx.ActionName)
 			panic(&Result{HttpStatus:http.StatusNotFound, Code:cast.ToString(http.StatusNotFound), Message:msg})
 		}
 	}

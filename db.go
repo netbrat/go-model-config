@@ -20,12 +20,12 @@ func AppendDB(connName string, db *gorm.DB) (err error) {
 }
 
 // 获取一个数据库连接对象
-func GetDB(connName string) (db *gorm.DB, err error) {
+func GetDB(connName string) (db *gorm.DB) {
 	ok := false
 	if db, ok = dbMap[connName]; ok {
 		db = db.Table("")
 	} else {
-		err = fmt.Errorf("数据库连接项不存在[%s]", connName)
+		panic(fmt.Errorf("数据库连接项不存在[%s]", connName))
 	}
 	return
 }

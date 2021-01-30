@@ -1,6 +1,6 @@
 {{define "widget/radio"}}
     {{ range $key,$val := .FromKvs}}
         {{$v := $.Value|string}}
-        <input type="radio" class="{{if $.Field.Disabled}}layui-disabled{{end}} {{$.Field.CssClass}}" style="{{.Field.CssStyle}}" id="{{$.Field.Name}}_{{$key}}" name="{{$.Field.Name}}" title=" {{$val.__value}}" value="{{$key}}" {{if eq $v $key}}checked{{end}}{{if $.Field.Disabled}} disabled {{end}} />
+        <input type="radio" class="{{if $.Field.Disabled}}layui-disabled{{end}} {{$.Field.CssClass}}" style="{{.Field.CssStyle}}" id="{{$.Field.Name}}_{{$key}}" name="{{$.Field.Name}}" title=" {{$val.__mc_value}}" value="{{$key}}" {{if eq $v $key}}checked{{end}}{{if $.Field.Disabled}} disabled {{end}} />
     {{end}}
 {{end}}

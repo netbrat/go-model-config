@@ -12,7 +12,7 @@ import (
 
 
 var TemplateFuncMap = template.FuncMap{
-    "HtmlUnescaped":HtmlUnescaped,
+    "html":HtmlUnescaped,
     "string": HtmlString,
     "int": HtmlInt,
     "float": HtmlFloat,

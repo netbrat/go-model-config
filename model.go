@@ -114,8 +114,8 @@ func (m *Model) GetFromKvs (from string) (kvs Kvs){
 	}else {
 		for key, value := range m.attr.Enums[fromInfo.FromName]{
 			kvs[key] = map[string]interface{}{
-				"__key" : key,
-				"__value": value,
+				"__mc_key" : key,
+				"__mc_value": value,
 			}
 		}
 	}

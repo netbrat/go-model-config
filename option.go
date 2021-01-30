@@ -21,34 +21,36 @@ type authOption struct {
 
 //响应选项
 type responseOption struct {
-	CodeName         string     //代码项的key
-	MessageName      string     //消息项的key
-	DataName         string     //数据项的key
-	TotalName        string     //总记录数或影响的记录数项的key
-	FootName         string     //表尾汇总数据项的key
-	SuccessCodeValue string     //成功代码值
-	FailCodeValue    string     //失败默认代码值
-	AjaxRenderType   RenderType //默认ajax渲染类型
+	CodeName         string     //代码项的key，默认值 code
+	MessageName      string     //消息项的key, 默认值 msg
+	DataName         string     //数据项的key, 默认值 data
+	TotalName        string     //总记录数或影响的记录数项的key，默认值 total
+	FootName         string     //表尾汇总数据项的key，默认值 foot
+	SuccessCodeValue string     //成功代码值，默认值 0000
+	FailCodeValue    string     //失败默认代码值，默认值 1000
+	AjaxRenderType   RenderType //默认ajax渲染类型 RenderTypeJSON
+	ErrorTemplate    string     //错误页面模版，默认值 "error.html"
+	MessageTemplate  string     //消息页面棋牌，默认值message.html
 }
 
 //请求选项
 type requestOption struct {
-	OrderName             string            //排序字段  				默认值 order
-	PageName              string            //前端页码参数名				默认值："page"
-	PageSizeName          string            //前端页记录数参数名			默认值："limit"
-	PageSizeValue         int               //默认页记录数				默认值：50
+	OrderName             string            //排序字段，默认值 order
+	PageName              string            //前端页码参数名，默认值："page"
+	PageSizeName          string            //前端页记录数参数名，默认值："limit"
+	PageSizeValue         int               //默认页记录数，默认值：50
 	ContextBeforeCallback ContextBeforeFunc //初始化上下文前回调
 	ContextAfterCallback  ContextAfterFunc  //初始化上下文后回调
 }
 
 //路由选项
 type routerOption struct {
-	UrlPathSep               string                            //URL路径之间的分割符号（不能使用_下线线）	默认为 "/"
-	UrlHtmlSuffix            string                            //URL伪静态后缀设置	默认为 "html"
+	UrlPathSep               string                            //URL路径之间的分割符号（不能使用_下线线），默认为 "/"
+	UrlHtmlSuffix            string                            //URL伪静态后缀设置，默认为 "html"
 	ControllerMap            map[string]map[string]IController //控制器map
-	BaseModuleName           string                            //全局基础模块key	默认值 "base"
-	BaseControllerName       string                            //全局基础控制器key	默认值 "base"
-	ModuleBaseControllerName string                            //当前模块下基础控制器key	默认为 "base"
+	BaseModuleName           string                            //全局基础模块key，默认值 "base"
+	BaseControllerName       string                            //全局基础控制器key，默认值 "base"
+	ModuleBaseControllerName string                            //当前模块下基础控制器key，默认为 "base"
 }
 
 
@@ -56,7 +58,6 @@ type routerOption struct {
 type Option struct {
 	engine               *gin.Engine    //
 	DefaultConnName      string         //默认数据库连接名			默认值："default"
-	ErrorTemplate        string         //错误页面模版				默认值 "error.html"
 	ModelConfigsFilePath string         //自定义模型配置文件存放路径	默认值："./mconfigs/"
 	Router               routerOption   //路由选项
 	Response             responseOption //结果项设置
@@ -67,7 +68,7 @@ type Option struct {
 //默认选项设置
 var option = Option{
 	DefaultConnName:      "default",
-	ErrorTemplate:        "error.html",
+
 	ModelConfigsFilePath: "./mconfigs/",
 	ModelAuth: authOption{
 		GetRowAuthModelsCallback: func() []string { return make([]string, 0) },
@@ -91,6 +92,8 @@ var option = Option{
 		TotalName:        "total",
 		FootName:         "foot",
 		AjaxRenderType:   RenderTypeJSON,
+		ErrorTemplate:    "error.html",
+		MessageTemplate:  "message.html",
 	},
 	Request: requestOption{
 		PageName:              "page",

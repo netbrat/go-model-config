@@ -19,6 +19,7 @@ type ModelBaseField struct {
    Editable    bool                   `json:"editable" default:"true"`   //是否显示在编辑表单中（默认true)
    Required    bool                   `json:"required"`                  //是否必填字段(默认false)
    Placeholder string                 `json:"placeholder"`               //
+   Width       int                    `json:"width" default:"150"`       //显示宽度（默认100）
    Disabled    bool                   `json:"disabled"`                  //是否禁止编辑 默认false，对于pk字段，会自动判断
    Between     bool                   `json:"between"`                   // 是否两值取范围
    BetweenSep  string                 `json:"betweenSep" default:"~"`    //两值分隔符
@@ -35,7 +36,6 @@ type ModelField struct {
    Func   string `json:"func"`                  //值显示的回调
    Align  string `json:"align" default:"left"`  //列表时对齐方式
    Sort   bool   `json:"sort" default:"true"`   //列表时是否允许排序（默认false)
-   Width  int    `json:"width" default:"100"`   //显示宽度（默认100）
    Fixed  string `json:"fixed"`                 //固定
 }
 
@@ -48,12 +48,10 @@ type ModelSearchField struct {
 
 //键值对配置对象
 type ModelKv struct {
-   KeyFields   []string `json:"keyFields"`   // 主键（必填）
-   ValueFields []string `json:"valueFields"` // 值字段列表 (必填）
-   KeySep      string   `json:"valueSep"`    // 多关键字段分隔符（默认_)
-   ValueSep    string   `json:"valueSep"`    // 多值字段分隔符（默认_）
-   Where       string   `json:"where"`       //查询条件（只作用此kv选择中)
-   Order       string   `json:"order"`       //排序
+   KeyField   string `json:"keyField"`   // 主键（必填）
+   ValueField string `json:"valueField"` // 值字段 (必填）
+   Where      string `json:"where"`      //查询条件（只作用此kv选择中)
+   Order      string `json:"order"`      //排序
 }
 
 //回调js配置对象
@@ -91,7 +89,7 @@ type ModelAttr struct {
    AutoInc         bool                          `json:"autoInc" default:"true"`     //主键自增长 默认 true
    UniqueFields    []string                      `json:"uniqueFields"`               //唯一性字段列表  选填
    SingleSelection bool                          `json:"singleSelection"`            //列表是否单选   默认 false
-   HideNumber      bool                          `json:"hideNumber"`                 //列表不显示序号  默认 true
+   Number          bool                          `json:"number"`                     //列表显示序号  默认 false
    Foot            bool                          `json:"foot"`                       //是否有全计表尾
    FootText        string                        `json:"footText" default:"合计"`      //表尾文本
    Where           string                        `json:"where"`                      //基础查询条件   默认""
@@ -204,7 +202,7 @@ func (attr *ModelAttr) ParseFrom (from string) (fromInfo ModelFieldFromInfo) {
    if fromInfo.IsKv {
       f := strings.Split(from, ":")
       fromInfo.FromName = f[0]
-      if len(f) < 2 || f[2] == "" {
+      if len(f) < 2 || f[1] == "" {
          f[1] = "default"
       }
       fromInfo.FromName, fromInfo.kvName = f[0], f[1]

@@ -6,6 +6,7 @@ type ModelController struct {
     Controller
 }
 
+//初始化控制器
 func (ctrl *ModelController) Initialize(c *Context, childCtrl IController) {
     ctrl.Controller.Initialize(c, childCtrl)
     ctrl.ChildController.ModelInitializeBefore() //模型初始化之前
@@ -21,8 +22,10 @@ func (ctrl *ModelController) Initialize(c *Context, childCtrl IController) {
 //首页操作
 func (ctrl *ModelController) IndexAct() {
     if ctrl.Context.Request.Method == "GET" {
+        ctrl.ChildController.ModelListUIRenderBefore()
         ctrl.Model.CreateSearchItems(nil)
-        ctrl.AbortWithSuccess(&Result{RenderType: RenderTypeHTML})
+        ctrl.AbortWithHtml(nil)
+        return
     } else if ctrl.Context.Request.Method == "POST" {
         page, pageSize := ctrl.Context.getPage()
         //查询选项
@@ -32,6 +35,7 @@ func (ctrl *ModelController) IndexAct() {
             PageSize: pageSize,
             Order:    ctrl.Context.getOrder(),
         }
+        ctrl.ChildController.ModelFindBefore(qo) //数据查询之前回调
         //数据查询
         data, foot, total, err := ctrl.Model.Find(qo)
         if err != nil {
@@ -45,7 +49,9 @@ func (ctrl *ModelController) IndexAct() {
                 option.Response.FootName:  foot,
             },
         }
-        ctrl.AbortWithSuccess(result)
+        ctrl.ChildController.ModelFindAfter(result) //数据查询之后回调
+        ctrl.AbortWithMessage(result)
+        return
     }
 }
 
@@ -69,22 +75,25 @@ func (ctrl *ModelController) DelAct() {
     if len(ids) <= 0 {
         panic(&Result{Message: "请选择至少一条记录进行操作"})
     }
+
     if _, err := ctrl.Model.Delete(ids); err != nil {
         panic(err)
     } else {
-        ctrl.AbortWithSuccess(&Result{Message: "数据删除成功"})
+        ctrl.AbortWithMessage(&Result{Message: "数据删除成功"})
     }
 }
 
-// 保存数据（不用于界面操作），仅供Add或Edit调用
+// 仅供Add或Edit调用
 func (ctrl *ModelController) Save(pkValue interface{}) {
     if ctrl.Context.Request.Method == "GET" { // GET 界面
         var rowData map[string]interface{}
         if pkValue != nil {
+
             qo := &QueryOption{
-                ExtraWhere: []interface{}{fmt.Sprintf("%s = ?", ctrl.Model.attr.Pk), pkValue},
+                ExtraWhere: []interface{}{fmt.Sprintf("%s = ?", ctrl.Model.FieldAddAlias(ctrl.Model.attr.Pk)), pkValue},
                 NotSearch:  true,
             }
+            ctrl.ChildController.ModelEditTakeBefore(qo) ////编辑查询数据前回调
             if row, exist, err := ctrl.Model.Take(qo); err != nil {
                 panic(err)
             } else if !exist {
@@ -93,16 +102,18 @@ func (ctrl *ModelController) Save(pkValue interface{}) {
                 rowData = row
             }
         }
+        ctrl.ChildController.ModelEditTakeAfter(rowData) //编辑查询数据后回调
         ctrl.Model.CreateEditItems(rowData)
-        ctrl.AbortWithSuccess(&Result{RenderType: RenderTypeHTML})
+        ctrl.AbortWithHtml(nil)
+        return
 
     } else if ctrl.Context.Request.Method == "POST" { //POST 提交
-
         data := ctrl.UrlValueToRequestValue(ctrl.Context.Request.PostForm)
+        ctrl.ChildController.ModelSaveBefore(data) //保存数据之前回调
         if _, err := ctrl.Model.Save(data, pkValue); err != nil {
             panic(err)
         } else {
-            ctrl.AbortWithSuccess(&Result{Message: "数据保存成功"})
+            ctrl.AbortWithMessage(&Result{Message: "数据保存成功"})
         }
     }
 }

@@ -17,7 +17,6 @@ import (
 
 
 func main() {
-
 	gin.SetMode("debug")
 
 	r := gin.Default()
@@ -32,7 +31,8 @@ func main() {
 	r.NoRoute(mc.HandlerAdapt)
 
 	option := mc.Default(r) //一定要在加载模版之后，否则默认widget不会加载
-	option.ErrorTemplate = "base/error.html"
+	option.Response.ErrorTemplate = "base/error.html"
+	option.Response.MessageTemplate = "base/message.html"
 	option.ModelConfigsFilePath = "./mconfigs/"
 	option.Request.PageSizeName = "limit"
 	option.Request.PageName = "page"
@@ -106,3 +106,6 @@ func getDB() *gorm.DB{
 
 	return db
 }
+
+
+

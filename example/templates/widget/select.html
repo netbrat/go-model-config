@@ -3,7 +3,7 @@
         {{ if .Field.NullOption}}<option value="">请选择</option>{{end }}
         {{ range $key,$val := .FromKvs}}
             {{$v := $.Value|string}}
-            <option value="{{$key}}" {{if eq $v $key}}selected{{end}}>{{$val.__value}}</option>
+            <option value="{{$key}}" {{if eq $v $key}}selected{{end}}>{{$val.__mc_value}}</option>
         {{end}}
     </select>
 {{end}}

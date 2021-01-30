@@ -23,20 +23,7 @@ const (
 	RenderTypeString		RenderType	= "STRING"
 )
 
-//结果体，当做为错误panic
-type Result struct {
-	HttpStatus int                    //响应代码
-	Code       string                 //消息代码
-	Message    string                 //消息
-	Data       interface{}            //数据体
-	ExtraData  map[string]interface{} //附加的数据
-	RenderType RenderType             //渲染方式
-}
 
-
-func (result *Result) Error() string {
-	return result.Message
-}
 
 
 //上下文
@@ -59,12 +46,12 @@ func NewContext(c *gin.Context) (ctx *Context) {
 	params := strings.Split(path, option.Router.UrlPathSep)
 	params = append(params, "", "", "", "")
 	ctx = &Context{
-		ModuleName:         strings.ToLower(params[1]),
-		RealModuleName:     strings.ToLower(params[1]),
-		ControllerName:     strings.ToLower(params[2]),
-		RealControllerName: strings.ToLower(params[2]),
-		ActionName:         strings.ToLower(params[3]),
-		ModelName:          strings.ToLower(params[4]),
+		ModuleName:         CamelToCase(params[1]),
+		RealModuleName:     CamelToCase(params[1]),
+		ControllerName:     CamelToCase(params[2]),
+		RealControllerName: CamelToCase(params[2]),
+		ActionName:         CamelToCase(params[3]),
+		ModelName:          CamelToCase(params[4]),
 		isAjax:             c.GetHeader("X-Requested-With") == "XMLHttpRequest",
 		Context:            c,
 	}

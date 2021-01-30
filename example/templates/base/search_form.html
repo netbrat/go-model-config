@@ -5,7 +5,7 @@
         {{range $key, $item := .Model.SearchItems}}
         <li class="layui-inline">
             <label class="layui-form-label">{{$item.Field.Title}}</label>
-            <span class="layui-input-inline">{{$item.Html | HtmlUnescaped}}</span>
+            <span class="layui-input-inline">{{$item.Html | html}}</span>
         </li>
         {{end}}
         <li class="layui-inline">

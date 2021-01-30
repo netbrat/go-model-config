@@ -1,42 +1,56 @@
 package mc
 
 import (
+	"fmt"
 	"github.com/spf13/cast"
 	"reflect"
 	"strings"
+	"unicode"
 )
 
-/*
- * 将带下线划的字符串转成驼峰写法
- * lower true 小驼峰， false 大驼峰
- */
-func ToCamelCase(str string, lower bool) string {
-	if str == "" {
-		return str
-	}
-
-	temp := strings.Split(str, "_")
-	firstString := ""
-	n := -1
-	if lower {
-		n = 0
-		firstString = temp[0]
-	}
-	var upperStr string
-	for y := 0; y < len(temp); y++ {
-		vv := []rune(temp[y])
-		if y != n {
-			for i := 0; i < len(vv); i++ {
-				if i == 0 {
-					vv[i] -= 32
-					upperStr += string(vv[i]) // + string(vv[i+1])
-				} else {
-					upperStr += string(vv[i])
-				}
+//驼峰转下划线小写
+func CamelToCase(str string) string{
+	s := []rune(str)
+	desc := ""
+	for i, v := range s {
+		if unicode.IsUpper(v) {
+			if i > 0 {
+				desc += "_"
 			}
 		}
+		desc += fmt.Sprintf("%c", v)
 	}
-	return firstString + upperStr
+	return strings.ToLower(desc)
+}
+
+// 转大驼峰写法
+func CaseToUpperCamel(str string) string {
+	str = strings.Replace(str, "_", " ", -1)
+	str = strings.Title(str)
+	return strings.Replace(str, " ", "", -1)
+}
+
+//转小驼峰
+func CaseToLowerCamel(str string) string{
+	return Lcfirst(CaseToUpperCamel(str))
+}
+
+
+// 首字母大写
+func Ucfirst(str string) string {
+	for i, v := range str {
+		return string(unicode.ToUpper(v)) + str[i+1:]
+	}
+	return ""
+}
+
+
+// 首字母小写
+func Lcfirst(str string) string {
+	for i, v := range str {
+		return string(unicode.ToLower(v)) + str[i+1:]
+	}
+	return ""
 }
 
 
@@ -90,15 +104,15 @@ func ToTreeMap(source []map[string]interface{}, keyName string) (desc map[string
 func toTreeMap(source []map[string]interface{}, keyName string, startIndex int, parent string) (desc map[string]interface{}){
 	desc = make(map[string]interface{})
 	for i := startIndex; i < len(source); i++ {
-		nodeChildCount := cast.ToInt(source[i]["__child_count"])
-		nodeParent := cast.ToString(source[i]["__parent"])
+		nodeChildCount := cast.ToInt(source[i]["__mc_child_count"])
+		nodeParent := cast.ToString(source[i]["__mc_parent"])
 		nodeKey := cast.ToString(source[i][keyName])
 		if nodeParent == parent {
 			newNode := source[i]
 			if nodeChildCount > 0 {
-				newNode["__children"] = toTreeMap(source, keyName, i+1, nodeKey)
+				newNode["__mc_children"] = toTreeMap(source, keyName, i+1, nodeKey)
 			}else{
-				newNode["__children"] = nil
+				newNode["__mc_children"] = nil
 			}
 			desc[nodeKey] = newNode
 		}

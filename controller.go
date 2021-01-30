@@ -10,13 +10,22 @@ import (
 
 //控制器接口
 type IController interface {
-	InitializeBefore()
-	InitializeAfter()
-	ModelInitializeBefore()
-	ModelInitializeAfter()
-	Initialize(c *Context, childCtrl IController)
-	AbortWithSuccess(result *Result)
-	AbortWithError(err interface{})
+	InitializeBefore()                                 //初始化Controller前回调
+	Initialize(c *Context, childCtrl IController)      //初始化
+	InitializeAfter()                                  //初始化Controller后回调
+	ModelInitializeBefore()                            //初始化Model前回调
+	ModelInitializeAfter()                             //初始化Model后回调
+	ModelListUIRenderBefore()                          //列表界面渲染前回调
+	ModelFindBefore(qo *QueryOption)                   //查询数据前回调
+	ModelFindAfter(result *Result)                     //查询数据后回调
+	ModelEditTakeBefore(qo *QueryOption)               //编辑查询数据前回调
+	ModelEditTakeAfter(rowData map[string]interface{}) //编辑查询数据后回调
+	ModelSaveBefore(data map[string]interface{})       //保存数据前回调
+	ModelDelBefore(ids []string)                       //删除数据前回调
+	AbortWithSuccess(result *Result)                   //成功输出
+	AbortWithError(err interface{})                    //错误输出
+	AbortWithMessage(result *Result)                   //消息输出 （使用消息模版）
+	AbortWithHtml(result *Result)                      //html输出 （使用HTML渲染式）
 }
 
 
@@ -37,18 +46,79 @@ type Assign struct {
 	Result  map[string]interface{}
 }
 
-//初始化Controller之前
+//结果体，当做为错误panic
+type Result struct {
+	HttpStatus  int                    //响应代码
+	Code        string                 //消息代码
+	Message     string                 //消息
+	RedirectUrl string                 //跳转地址
+	Data        interface{}            //数据体
+	ExtraData   map[string]interface{} //附加的数据
+	RenderType  RenderType             //渲染方式
+	IsInfo		bool					//是否是普通提示性消息（使用错误输出时有效）
+}
+
+//给分配器添加内容
+func (assign * Assign) Append(key string, value interface{}) (r *Assign){
+	assign.Result[key] = value
+	return assign
+}
+
+//实现结果错误接口
+func (result *Result) Error() string {
+	return result.Message
+}
+
+//给结果集上添加内容
+func (result *Result) Append(key string, value interface{}) (r *Result){
+	result.ExtraData[key] = value
+	return result
+}
+
+//初始化Controller前回调
 func (ctrl *Controller) InitializeBefore(){}
 
-//初始化Controller之后
+//初始化Controller后回调
 func (ctrl *Controller) InitializeAfter(){}
 
-//初始化Model之前
+//初始化Model前回调
 func (ctrl *Controller) ModelInitializeBefore() {}
 
-//初始化Model之后
+//初始化Model后回调
 func (ctrl *Controller) ModelInitializeAfter() {}
 
+//列表界面渲染前回调
+func(ctrl *Controller) ModelListUIRenderBefore(){
+	return
+}
+//查询数据前回调
+func(ctrl *Controller) ModelFindBefore(qo *QueryOption){
+	return
+}
+
+//查询数据后回调
+func(ctrl *Controller) ModelFindAfter(result *Result){
+	return
+}
+
+//编辑查询数据前回调
+func(ctrl *Controller) ModelEditTakeBefore(qo *QueryOption){
+	return
+}
+//编辑查询数据后回调
+func(ctrl *Controller) ModelEditTakeAfter(rowData map[string]interface{}){
+	return
+}
+
+//保存数据前回调
+func(ctrl *Controller) ModelSaveBefore(data map[string]interface{}){
+	return
+}
+
+//删除数据前回调
+func(ctrl *Controller) ModelDelBefore(ids []string){
+	return
+}
 
 //初始化基类
 func (ctrl *Controller) Initialize(c *Context, childCtrl IController) {
@@ -61,7 +131,11 @@ func (ctrl *Controller) Initialize(c *Context, childCtrl IController) {
 	ctrl.Assign = &Assign{
 		Context: c,
 		Model: ctrl.Model,
-		Result: make(map[string]interface{}),
+		Result: map[string]interface{}{
+			option.Response.CodeName: option.Response.SuccessCodeValue,
+			option.Response.MessageName: "",
+			option.Response.DataName: nil,
+		},
 	}
 	//初始化之后
 	ctrl.ChildController.InitializeAfter()
@@ -106,7 +180,6 @@ func (ctrl *Controller) AbortWithSuccess(result *Result) {
 	if result.Message != "" {
 		ctrl.Assign.Result[option.Response.MessageName] = result.Message
 	}
-
 	//数据
 	if result.Data != nil {
 		ctrl.Assign.Result[option.Response.DataName] = result.Data
@@ -132,6 +205,8 @@ func (ctrl *Controller) AbortWithError(err interface{}) {
 		result = &Result{}
 	}else if e, ok := err.(*Result); ok {
 		result = e
+	}else if e, ok := err.(error); ok {
+		result = &Result{HttpStatus: http.StatusInternalServerError, Code: cast.ToString(http.StatusInternalServerError), Message: e.Error()}
 	}else {
 		result = &Result{HttpStatus: http.StatusInternalServerError, Code: cast.ToString(http.StatusInternalServerError), Message: "系统异常，请稍后重试!"}
 	}
@@ -139,10 +214,28 @@ func (ctrl *Controller) AbortWithError(err interface{}) {
 	if result.Code == "" {
 		result.Code = option.Response.FailCodeValue
 	}
-	ctrl.Template = option.ErrorTemplate
+	if result.IsInfo { //使用普通消息输出
+		ctrl.AbortWithMessage(result)
+		return
+	}
+	ctrl.Template = option.Response.ErrorTemplate
 	ctrl.AbortWithSuccess(result)
 }
 
+//消息输出 （使用消息模版）
+func (ctrl *Controller) AbortWithMessage(result *Result) {
+	ctrl.Template = option.Response.MessageTemplate
+	ctrl.AbortWithSuccess(result)
+}
+
+//html输出 （使用HTML渲染式）
+func (ctrl *Controller) AbortWithHtml(result *Result){
+	if result == nil{
+		result = &Result{}
+	}
+	result.RenderType = RenderTypeHTML
+	ctrl.AbortWithSuccess(result)
+}
 
 
 

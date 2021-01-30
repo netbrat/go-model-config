@@ -55,10 +55,7 @@ func (m *Model) NewDB() *gorm.DB {
 // 获取一个仅包含连接名及表名的连接对象
 // param isAs 表是否带别名
 func (m *Model) BaseDB(isAs bool) *gorm.DB {
-	db, err := GetDB(m.attr.ConnName)
-	if err != nil {
-		panic(err)
-	}
+	db := GetDB(m.attr.ConnName)
 	if isAs {
 		tb := fmt.Sprintf("%s AS %s", m.attr.Table, m.attr.Alias)
 		if m.attr.DBName != "" {
@@ -112,7 +109,7 @@ func (m *Model) FindKvs(qo *KvsQueryOption) (desc Kvs, err error) {
 	//处理结果
 	desc = make(Kvs)
 	for i, v := range data {
-		key := cast.ToString(v["__key"])
+		key := cast.ToString(v["__mc_key"])
 		//树形
 		if m.attr.IsTree && qo.ReturnPath {
 			key = cast.ToString(v[m.attr.Tree.PathField])
@@ -124,7 +121,7 @@ func (m *Model) FindKvs(qo *KvsQueryOption) (desc Kvs, err error) {
 			indent = *qo.TreeIndent
 		}
 		if m.attr.IsTree && indent != "" { //树形名称字段加前缀
-			data[i]["__value"] = nString(indent, cast.ToInt(data[i]["__level"])-1) + cast.ToString(data[i]["__value"])
+			data[i]["__mc_value"] = nString(indent, cast.ToInt(data[i]["__mc_level"])-1) + cast.ToString(data[i]["__mc_value"])
 		}
 		desc[key] = v
 	}
@@ -456,11 +453,11 @@ func (m *Model) ParseKvFields(kvName string, extraFields []string) (fields []str
 	if kv, ok = m.attr.Kvs[kvName]; !ok {
 		return
 	}
-	keySep := fmt.Sprintf(",'%s',", kv.KeySep)
-	valueSep := fmt.Sprintf(",'%s',", kv.ValueSep)
-	keyField := fmt.Sprintf("CONCAT(%s) AS `__key`", strings.Join(m.FieldsAddAlias(kv.KeyFields), keySep))
-	ValueField := fmt.Sprintf("CONCAT(%s) AS `__value`", strings.Join(m.FieldsAddAlias(kv.ValueFields), valueSep))
-	fields = append(fields, keyField, ValueField)
+	//keySep := fmt.Sprintf(",'%s',", kv.KeySep)
+	//valueSep := fmt.Sprintf(",'%s',", kv.ValueSep)
+	keyField := fmt.Sprintf("%s AS `__mc_key`", m.FieldAddAlias(kv.KeyField))
+	valueField := fmt.Sprintf("%s AS `__mc_value`", m.FieldAddAlias(kv.ValueField))
+	fields = append(fields, keyField, valueField)
 
 	// 树型必备字段
 	if m.attr.IsTree {
@@ -508,7 +505,15 @@ func (m *Model) ProcessData(data []map[string]interface{}, qo *QueryOption)(err 
 	if data == nil || len(data) <= 0 {
 		return
 	}
-	if !qo.NotConvertFromValue { //转换成from值
+
+	//序号
+	if m.attr.Number {
+		for i, _ := range data {
+			data[i]["__mc_index"] = (qo.Page -1) * qo.PageSize + i + 1
+		}
+	}
+	//转换成from值
+	if !qo.NotConvertFromValue {
 		for _, f := range m.attr.Fields {
 			if _, ok := data[0][f.Name]; !ok {
 				continue
@@ -517,23 +522,24 @@ func (m *Model) ProcessData(data []map[string]interface{}, qo *QueryOption)(err 
 				enum := m.GetFromKvs(f.From)
 				for i, _ := range data {
 					if qo.AttachFromRealValue { //附加字段原值真实值
-						data[i]["__"+f.Name] = data[i][f.Name]
+						data[i]["__mc_"+f.Name] = data[i][f.Name]
 					}
 					vString := cast.ToString(data[i][f.Name]) //字段值
 					if f.Multiple {                           //多选
 						vs := strings.Split(vString, f.Separator)
 						newVs := make([]string, 0)
 						for _, v := range vs {
-							newVs = append(newVs, cast.ToString(enum[v]["__value"]))
+							newVs = append(newVs, cast.ToString(enum[v]["__mc_value"]))
 						}
 						data[i][f.Name] = strings.Join(newVs, f.Separator)
 					} else { //单选
-						data[i][f.Name] = cast.ToString(enum[vString]["__value"])
+						data[i][f.Name] = cast.ToString(enum[vString]["__mc_value"])
 					}
 				}
 			}
 		}
 	}
+	//树形
 	indent := ""
 	if qo.TreeIndent == nil {
 		indent = m.attr.Tree.Indent
@@ -542,7 +548,7 @@ func (m *Model) ProcessData(data []map[string]interface{}, qo *QueryOption)(err 
 	}
 	if m.attr.IsTree && indent != "" { //树形名称字段加前缀
 		for i, _ := range data {
-			data[i][m.attr.Tree.NameField] = nString(indent, cast.ToInt(data[i]["__level"])-1) + cast.ToString(data[i][m.attr.Tree.NameField])
+			data[i][m.attr.Tree.NameField] = nString(indent, cast.ToInt(data[i]["__mc_level"])-1) + cast.ToString(data[i][m.attr.Tree.NameField])
 		}
 	}
 	return
@@ -552,17 +558,17 @@ func (m *Model) ProcessData(data []map[string]interface{}, qo *QueryOption)(err 
 // 分析树形结构查询必须的扩展字段
 func (m *Model) ParseTreeExtraField() (field []string) {
 	pathField := m.FieldAddAlias(m.attr.Tree.PathField)
-	__pathField := fmt.Sprintf("`__%s`.`%s`", m.attr.Table, m.attr.Tree.PathField)
-	__pkField := fmt.Sprintf("`__%s`.`%s`", m.attr.Table, m.attr.Pk)
+	__mc_pathField := fmt.Sprintf("`__mc_%s`.`%s`", m.attr.Table, m.attr.Tree.PathField)
+	__mc_pkField := fmt.Sprintf("`__mc_%s`.`%s`", m.attr.Table, m.attr.Pk)
 
 	field = make([]string, 3)
 	//层级字段
-	field[0] = fmt.Sprintf("CEILING(LENGTH(%s)/%d) AS `__level`", pathField, m.attr.Tree.PathBit)
+	field[0] = fmt.Sprintf("CEILING(LENGTH(%s)/%d) AS `__mc_level`", pathField, m.attr.Tree.PathBit)
 	//父节点字段
-	field[1] = fmt.Sprintf("(SELECT %s FROM `%s` AS `__%s` WHERE %s=LEFT(%s, LENGTH(%s)-%d) LIMIT 1) AS `__parent`",
-		__pkField, m.attr.Table, m.attr.Table, __pathField, pathField, pathField, m.attr.Tree.PathBit)
+	field[1] = fmt.Sprintf("(SELECT %s FROM `%s` AS `__mc_%s` WHERE %s=LEFT(%s, LENGTH(%s)-%d) LIMIT 1) AS `__mc_parent`",
+		__mc_pkField, m.attr.Table, m.attr.Table, __mc_pathField, pathField, pathField, m.attr.Tree.PathBit)
 	//字节点数字段
-	field[2] = fmt.Sprintf("(SELECT count(%s) FROM `%s` AS `__%s` WHERE %s=LEFT(%s, LENGTH(%s)-%d) LIMIT 1) AS `__child_count`",
-		__pkField, m.attr.Table, m.attr.Table, pathField, __pathField, __pathField, m.attr.Tree.PathBit)
+	field[2] = fmt.Sprintf("(SELECT count(%s) FROM `%s` AS `__mc_%s` WHERE %s=LEFT(%s, LENGTH(%s)-%d) LIMIT 1) AS `__mc_child_count`",
+		__mc_pkField, m.attr.Table, m.attr.Table, pathField, __mc_pathField, __mc_pathField, m.attr.Tree.PathBit)
 	return
 }

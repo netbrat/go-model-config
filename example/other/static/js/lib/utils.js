@@ -126,7 +126,6 @@ layui.define(function(exports){
             options.width = (options.width || '600') + 'px';
             options.height = (options.height || '450') + 'px';
         }
-        console.log(options);
         $.ajax({
             url: options.url,
             type: options.type,
@@ -156,24 +155,6 @@ layui.define(function(exports){
                 }catch(e) { //非JSON格式
                     layer.open({type:options.showType, title:'提示信息', content: data, area:[options.width, options.height], maxmin:true, resize:true, moveOut:true});
                 }
-
-
-
-                //
-                // if (utils.isJson(data)) {
-                //     if (typeof options.successJson === "function") {
-                //         options.successJson(data);
-                //     } else {
-                //         data = $.parseJSON(data);
-                //         layer.open({title: '提示信息', content: data.msg, icon: data.code == 0 ? 6 : 5});
-                //     }
-                // }else{
-                //     if (typeof options.success === "function") {
-                //         options.success(data);
-                //     }else{
-                //         layer.open({type:options.showType, title:'提示信息', content: data, area:[options.width, options.height], maxmin:true, resize:true, moveOut:true});
-                //     }
-                // }
             },
             error: function(){
                 if(typeof options.error === "function") {

@@ -10,7 +10,7 @@
                     {{if $item.Field.Required}}<em>*</em>{{end}}{{$item.Field.Title}}
                 </label>
                 <div class="layui-input-block">
-                    {{$item.Html | HtmlUnescaped}}
+                    {{$item.Html | html}}
                     {{ if $item.Field.Info}}
                         <div class="layui-form-mid layui-word-aux">{{$item.Field.Info}}</div>
                     {{end}}
