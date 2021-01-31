@@ -1,7 +1,6 @@
 package mc
 
 import (
-	"errors"
 	"fmt"
 	"github.com/spf13/cast"
 	"gorm.io/gorm"
@@ -34,8 +33,9 @@ type QueryOption struct {
 	NotSearch           bool                   //是否不使用配置查询项进行查询
 	NotFoot             bool                   //是否查询汇总项 （仅对find有效）
 	TreeIndent          *string                //树型模型节点名称前根据层级加前缀字符
-	NotConvertFromValue bool                   //是否转换from值
-	AttachFromRealValue bool                   //是否附加kv及enum字段原值 （仅对find有效）
+	NotConvertFromValue bool                   //不转换from值， 默认false(转换）
+	AttachFromRealValue bool                   //是否附加kv及enum字段原值
+	useModelFiledType  string                 // 取list字段还是edit字段列表 (list|edit)
 }
 
 type RowData map[string]interface{}
@@ -128,46 +128,40 @@ func (m *Model) FindKvs(qo *KvsQueryOption) (desc Kvs, err error) {
 	return
 }
 
-// 获取一条数据
-func (m *Model) Take(qo *QueryOption) (desc map[string]interface{}, exist bool, err error) {
-	//检查选项
-	if qo == nil {
-		qo = &QueryOption{}
-	}
-	//分析查询的字段
-	fields, _ := m.ParseFields(qo.ExtraFields)
-	if fields == nil || len(fields) <= 0 {
-		return
-	}
-	//分析查询条件
-	theDB := m.ParseWhere(qo.DB, qo.ExtraWhere, qo.Values, qo.NotSearch)
-
-	//排序
-	if qo.Order != "" {
-		theDB.Order(qo.Order)
-	} else if m.attr.Order != "" {
-		theDB.Order(m.attr.Order)
-	}
-
-	desc = make(map[string]interface{})
-	err = theDB.Select(fields).Take(&desc).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = nil
-		}
-		return
-	}
-	return desc, true, nil
+// 获取一条编辑数据
+func (m *Model) TakeForEdit(qo *QueryOption) (desc map[string]interface{}, exist bool, err error) {
+	indent := ""
+	qo.NotConvertFromValue = true
+	qo.NotSearch = true
+	qo.TreeIndent = &indent
+	qo.useModelFiledType = "edit"
+	return m.Take(qo)
 }
 
-// 获取数据列表
+// 获取一条list数据
+func (m *Model) Take(qo *QueryOption) (desc map[string]interface{}, exist bool, err error) {
+	qo.PageSize = 1
+	qo.Page = 1
+	qo.NotTotal = true
+	qo.NotFoot = true
+
+	if data, _, _, err := m.Find(qo); err != nil  {
+		return nil, false, err
+	}else if len(data) < 0 {
+		return nil, false, nil
+	}else{
+		return data[0], true, nil
+	}
+}
+
+// 获取list数据列表
 func (m *Model) Find(qo *QueryOption) (desc []map[string]interface{}, foot map[string]interface{}, total int64, err error) {
 	//检查选项
 	if qo == nil {
 		qo = &QueryOption{}
 	}
 	//分析查询的字段
-	fields, footFields := m.ParseFields(qo.ExtraFields)
+	fields, footFields := m.ParseFields(qo)
 	if fields == nil || len(fields) <= 0 {
 		return
 	}
@@ -414,16 +408,22 @@ func (m *Model) ParseWhere(db *gorm.DB, extraWhere []interface{}, searchValues m
 // @param	extraFields		额外附加的字段
 // @return	fields			最终需要查询的字段名数组
 // @return	footFields	汇总字段
-func (m *Model) ParseFields(extraFields []string)(fields []string,footFields []string) {
+func (m *Model) ParseFields(qo *QueryOption)(fields []string,footFields []string) {
 	fields = make([]string, 0)
 	footFields = make([]string, 0)
 	//扩展字段
-	fields = append(fields, m.FieldsAddAlias(extraFields)...)
+	fields = append(fields, m.FieldsAddAlias(qo.ExtraFields)...)
 	// 树型必备字段
 	if m.attr.IsTree {
 		fields = append(fields, m.ParseTreeExtraField()...)
 	}
-	for _, field := range m.attr.listFields {
+	var modelFields []*ModelField
+	if strings.ToLower(qo.useModelFiledType) == "edit" {
+		modelFields = m.attr.editFields
+	}else{
+		modelFields = m.attr.listFields
+	}
+	for _, field := range modelFields {
 		//基础字段
 		fieldName := ""
 		if field.Alias == "" {

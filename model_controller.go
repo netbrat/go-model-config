@@ -79,7 +79,9 @@ func (ctrl *ModelController) DelAct() {
     if _, err := ctrl.Model.Delete(ids); err != nil {
         panic(err)
     } else {
-        ctrl.AbortWithMessage(&Result{Message: "数据删除成功"})
+        result := &Result{Message: "数据删除成功"}
+        ctrl.ChildController.ModelSaveAfter(result)
+        ctrl.AbortWithMessage(result)
     }
 }
 
@@ -88,13 +90,11 @@ func (ctrl *ModelController) Save(pkValue interface{}) {
     if ctrl.Context.Request.Method == "GET" { // GET 界面
         var rowData map[string]interface{}
         if pkValue != nil {
-
             qo := &QueryOption{
                 ExtraWhere: []interface{}{fmt.Sprintf("%s = ?", ctrl.Model.FieldAddAlias(ctrl.Model.attr.Pk)), pkValue},
-                NotSearch:  true,
             }
             ctrl.ChildController.ModelEditTakeBefore(qo) ////编辑查询数据前回调
-            if row, exist, err := ctrl.Model.Take(qo); err != nil {
+            if row, exist, err := ctrl.Model.TakeForEdit(qo); err != nil {
                 panic(err)
             } else if !exist {
                 panic(&Result{Message: "记录未找到"})
@@ -113,7 +113,9 @@ func (ctrl *ModelController) Save(pkValue interface{}) {
         if _, err := ctrl.Model.Save(data, pkValue); err != nil {
             panic(err)
         } else {
-            ctrl.AbortWithMessage(&Result{Message: "数据保存成功"})
+            result := &Result{Message: "数据保存成功"}
+            ctrl.ChildController.ModelSaveAfter(result)
+            ctrl.AbortWithMessage(result)
         }
     }
 }

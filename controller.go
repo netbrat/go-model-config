@@ -21,7 +21,9 @@ type IController interface {
 	ModelEditTakeBefore(qo *QueryOption)               //编辑查询数据前回调
 	ModelEditTakeAfter(rowData map[string]interface{}) //编辑查询数据后回调
 	ModelSaveBefore(data map[string]interface{})       //保存数据前回调
+	ModelSaveAfter(result *Result)                     //保存数据后回调
 	ModelDelBefore(ids []string)                       //删除数据前回调
+	ModelDelAfter(result *Result)                      //删除数据后回调
 	AbortWithSuccess(result *Result)                   //成功输出
 	AbortWithError(err interface{})                    //错误输出
 	AbortWithMessage(result *Result)                   //消息输出 （使用消息模版）
@@ -115,8 +117,18 @@ func(ctrl *Controller) ModelSaveBefore(data map[string]interface{}){
 	return
 }
 
+//保存数据后回调
+func(ctrl *Controller) ModelSaveAfter(result *Result){
+	return
+}
+
 //删除数据前回调
 func(ctrl *Controller) ModelDelBefore(ids []string){
+	return
+}
+
+//删除数据后回调
+func(ctrl *Controller) ModelDelAfter(result *Result){
 	return
 }
 

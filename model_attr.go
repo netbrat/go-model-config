@@ -103,7 +103,8 @@ type ModelAttr struct {
    Kvs             map[string]ModelKv            `json:"kvs"`                        //键值对配置结构
    JavaScript      ModelJavascript               `json:"javascript"`                 //回调js
    Extra           map[string]interface{}        `json:"extra"`                      //扩展属性
-   listFields      []*ModelField                 `json:"-"`                          //列表字段（过滤隐藏及权限）
+   listFields      []*ModelField                 `json:"-"`                          //列表字段列表（过滤隐藏及权限）
+   editFields      []*ModelField                 `json:"-"`                          //编辑字段列表
    fieldIndexMap   map[string]int                `json:"-"`                          //字段索引map {fieldName1:index1,fieldName2:index2,...}
    rowAuthFieldMap map[string]ModelFieldFromInfo `json:"-"`                          //行权限字段map {fieldName1:fromInfo1,...}
    isRowAuth       bool                          `json:"-"`                          //模型本身是否是行权限模型
@@ -134,6 +135,7 @@ func (attr *ModelAttr) parse() {
    }
    // 分析列表字段的基础字段信息
    attr.listFields = make([]*ModelField, 0)
+   attr.editFields = make([]*ModelField, 0)
    attr.fieldIndexMap = make(map[string]int)
    attr.rowAuthFieldMap = make(map[string]ModelFieldFromInfo, 0)
    rowAuthModels := option.ModelAuth.GetRowAuthModelsCallback()
@@ -154,9 +156,15 @@ func (attr *ModelAttr) parse() {
             attr.rowAuthFieldMap[f.Name] = fromInfo
          }
       }
-      //判断列权限以及字段是否隐藏
+
+      //列表字段列表
       if !attr.Fields[i].Hidden && (isAllAuth || InArray(f.Name, colAuth)) {
          attr.listFields = append(attr.listFields, f)
+      }
+
+      //编辑字段列表
+      if attr.Fields[i].Editable {
+         attr.editFields = append(attr.editFields, f)
       }
       attr.fieldIndexMap[f.Name] = i
       if f.Name == attr.Pk { //当字段是主键时，判断是否可编辑及必填属性
@@ -192,7 +200,7 @@ func (attr *ModelAttr) parseBaseField(field *ModelBaseField) {
 }
 
 
-
+//分析字段数据来源
 func (attr *ModelAttr) ParseFrom (from string) (fromInfo ModelFieldFromInfo) {
    fromInfo = ModelFieldFromInfo{}
    if from == "" {
