@@ -99,6 +99,7 @@ type ModelAttr struct {
    Tree            ModelTree                     `json:"tree"`                       //树形结构
    Fields          []ModelField                  `json:"fields"`                     //字段列表
    SearchFields    []ModelSearchField            `json:"searchFields"`               //查询字段列表
+   OtherFields     map[string][]ModelBaseField   `json:"otherFields"`                //其它表单字段
    Enums           map[string]map[string]string  `json:"enums"`                      //枚举列表
    Kvs             map[string]ModelKv            `json:"kvs"`                        //键值对配置结构
    JavaScript      ModelJavascript               `json:"javascript"`                 //回调js
@@ -133,17 +134,29 @@ func (attr *ModelAttr) parse() {
          attr.Tree.PathField = "path"
       } //没有指定树型路径字段，使用默认path
    }
+   //分析模型字段
+   attr.parseModelFields()
+   // 分析查询字段的基础字段信息
+   attr.parseSearchFields()
+   // 分析其它表单字段信息
+
+}
+
+//分析模型字段
+func (attr *ModelAttr) parseModelFields(){
    // 分析列表字段的基础字段信息
    attr.listFields = make([]*ModelField, 0)
    attr.editFields = make([]*ModelField, 0)
    attr.fieldIndexMap = make(map[string]int)
    attr.rowAuthFieldMap = make(map[string]ModelFieldFromInfo, 0)
    rowAuthModels := option.ModelAuth.GetRowAuthModelsCallback()
+
    //判断模型自身是否是行权限模型
    if InArray(attr.Name, rowAuthModels) {
       attr.isRowAuth = true
    }
-   colAuth, isAllAuth := option.ModelAuth.GetColAuthCallback(attr.Name)
+   colAuth, isAllAuth := option.ModelAuth.GetColAuthCallback(attr.Name) //获取模型字段列权限列表
+   //分析模型字段
    for i, _ := range attr.Fields {
       f := &attr.Fields[i]
       if attr.IsTree {
@@ -174,12 +187,26 @@ func (attr *ModelAttr) parse() {
       }
       attr.parseBaseField(&f.ModelBaseField)
    }
-   // 分析查询字段的基础字段信息
+}
+
+
+// 分析查询字段的基础字段信息
+func (attr *ModelAttr) parseSearchFields(){
    for i, _ := range attr.SearchFields {
       sf := &attr.SearchFields[i]
       attr.parseBaseField(&sf.ModelBaseField)
       if sf.Values == nil {
          sf.Values = []string{"?"}
+      }
+   }
+}
+
+// 分析其它表单字段信息
+func (attr *ModelAttr) parseOtherFields(){
+   for key, _ := range attr.OtherFields{
+      for i, _ := range attr.OtherFields[key]{
+         sf := &attr.OtherFields[key][i]
+         attr.parseBaseField(sf)
       }
    }
 }

@@ -19,9 +19,6 @@ type Kvs map[string]map[string]interface{} //Enum 或kvs集
 type Model struct {
 	db          *gorm.DB
 	attr        *ModelAttr
-	//auth        *ModelAuth
-	searchItems []FormItem
-	editItems   []FormItem
 }
 
 
@@ -50,15 +47,6 @@ func (m *Model) Attr() *ModelAttr {
 	return m.attr
 }
 
-//获取查询表单组件
-func (m *Model) SearchItems() []FormItem{
-	return m.searchItems
-}
-
-// 获取编辑表单组件
-func (m *Model) EditItems() []FormItem{
-	return m.editItems
-}
 
 // 设置配置属性
 func (m *Model) SetAttr(attr *ModelAttr) *Model {
@@ -143,20 +131,21 @@ func (m *Model) IsRowAuth() bool {
 	return m.attr.isRowAuth
 }
 
-// 创建查询项
-func (m *Model) CreateSearchItems(searchValues map[string]interface{}) {
+// 创建查询表单项
+func (m *Model) CreateSearchItems(searchValues map[string]interface{}) (items []FormItem) {
 	values := m.ParseSearchValues(searchValues)
-	m.searchItems = make([]FormItem, 0)
+	items = make([]FormItem, 0)
 	for i, _ := range m.attr.SearchFields {
 		field := m.attr.SearchFields[i]
 		item := m.createFormItem(&field.ModelBaseField, values[field.Name])
-		m.searchItems = append(m.searchItems, item)
+		items = append(items, item)
 	}
+	return
 }
 
-// 创建编辑项
-func  (m *Model) CreateEditItems(values map[string]interface{}) {
-	m.editItems = make([]FormItem, 0)
+// 创建编辑表单项
+func  (m *Model) CreateEditItems(values map[string]interface{})  (items []FormItem) {
+	items = make([]FormItem, 0)
 	for i, _ := range m.attr.Fields {
 		field := m.attr.Fields[i]
 		//如果不允许编辑项（不包含PK字段）
@@ -164,15 +153,31 @@ func  (m *Model) CreateEditItems(values map[string]interface{}) {
 			continue
 		}
 		item := m.createFormItem(&field.ModelBaseField, values[field.Name])
-		m.editItems = append(m.editItems, item)
+		items = append(items, item)
 	}
+	return
 }
+
+// 创建其它表单项
+func (m *Model) CreateOtherItems(key string, values map[string]interface{}) (items []FormItem) {
+	items = make([]FormItem, 0)
+	for i , _ := range m.attr.OtherFields[key] {
+		field := m.attr.OtherFields[key][i]
+		item := m.createFormItem(&field, values[field.Name])
+		items = append(items, item)
+	}
+	return
+}
+
 
 // 生成单个查询或编辑项
 func (m *Model) createFormItem(field *ModelBaseField, value interface{}) FormItem {
 	var kvs Kvs
 	if value == nil && field.Default != nil {
 		value = field.Default
+	}
+	if field.Multiple {
+		value = strings.Split(cast.ToString(value), field.Separator)
 	}
 	// 如果字段是enum或kv，则选读取对应的enum
 	if field.From == "" {

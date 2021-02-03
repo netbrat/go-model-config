@@ -30,6 +30,7 @@ func main() {
 	r.NoMethod(mc.HandlerAdapt)
 	r.NoRoute(mc.HandlerAdapt)
 
+
 	option := mc.Default(r) //一定要在加载模版之后，否则默认widget不会加载
 	option.Response.ErrorTemplate = "base/error.html"
 	option.Response.MessageTemplate = "base/message.html"

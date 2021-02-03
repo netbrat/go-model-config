@@ -122,6 +122,9 @@ func (ctx *Context) Render(renderType RenderType, httpStatus int, template strin
 	case RenderTypeString:
 		ctx.String(httpStatus, fmt.Sprint(assign.Result))
 	default:
+		if template == "" {
+			template = GetTemplateName(ctx)
+		}
 		ctx.HTML(httpStatus, template, assign)
 	}
 }

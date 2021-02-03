@@ -139,7 +139,7 @@ func (ctrl *Controller) Initialize(c *Context, childCtrl IController) {
 	ctrl.ChildController.InitializeBefore()
 	//开始初始化
 	ctrl.Context = c
-	ctrl.Template = fmt.Sprintf("%s/%s_%s.html", ctrl.Context.RealModuleName, ctrl.Context.RealControllerName, ctrl.Context.ActionName)
+	ctrl.Template = "" // fmt.Sprintf("%s/%s_%s.html", ctrl.Context.RealModuleName, ctrl.Context.RealControllerName, ctrl.Context.ActionName)
 	ctrl.Assign = &Assign{
 		Context: c,
 		Model: ctrl.Model,
@@ -236,12 +236,14 @@ func (ctrl *Controller) AbortWithError(err interface{}) {
 
 //消息输出 （使用消息模版）
 func (ctrl *Controller) AbortWithMessage(result *Result) {
+	fmt.Println("message", ctrl.Context)
 	ctrl.Template = option.Response.MessageTemplate
 	ctrl.AbortWithSuccess(result)
 }
 
 //html输出 （使用HTML渲染式）
 func (ctrl *Controller) AbortWithHtml(result *Result){
+	fmt.Println("html", ctrl.Context)
 	if result == nil{
 		result = &Result{}
 	}

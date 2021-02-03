@@ -23,7 +23,7 @@ func (ctrl *ModelController) Initialize(c *Context, childCtrl IController) {
 func (ctrl *ModelController) IndexAct() {
     if ctrl.Context.Request.Method == "GET" {
         ctrl.ChildController.ModelListUIRenderBefore()
-        ctrl.Model.CreateSearchItems(nil)
+        ctrl.Assign.Result["form_items"] = ctrl.Model.CreateSearchItems(nil)
         ctrl.AbortWithHtml(nil)
         return
     } else if ctrl.Context.Request.Method == "POST" {
@@ -103,7 +103,7 @@ func (ctrl *ModelController) Save(pkValue interface{}) {
             }
         }
         ctrl.ChildController.ModelEditTakeAfter(rowData) //编辑查询数据后回调
-        ctrl.Model.CreateEditItems(rowData)
+        ctrl.Assign.Result["form_items"] = ctrl.Model.CreateEditItems(rowData)
         ctrl.AbortWithHtml(nil)
         return
 
